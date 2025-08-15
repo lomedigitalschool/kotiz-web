@@ -22,7 +22,7 @@ cp .env.example .env
 
 4. Lancer l'application
 ```bash
-npm start
+npm run dev
 ```
 
 ## Structure du projet
@@ -46,6 +46,7 @@ src/
 ## Technologies utilisées
 
 - React.js
+- Vite
 - React Router
 - Axios
 - CSS3
