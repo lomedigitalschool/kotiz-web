@@ -1,1 +1,0 @@
-// Page des contributions

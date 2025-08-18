@@ -1,1 +1,0 @@
-// Formulaire de contribution
