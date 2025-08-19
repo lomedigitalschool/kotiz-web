@@ -1,3 +1,4 @@
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -6,22 +7,18 @@ module.exports = {
   ],
   theme: {
     extend: {
-      fontFamily: {
-        sans: ["Roboto", "sans-serif"], // remplace la font par défaut
-      },
       colors: {
-        primary: "#4ca260",
-        secondary: "#3B5BAB",
+        primaryGreen: '#4ca260',
+        primaryBlue: '#3B5BAB',
+      },
+      animation: {
+        slowPulse: 'slowPulse 6s ease-in-out infinite',
       },
       keyframes: {
         slowPulse: {
-          '0%': { transform: 'scale(1)' },
-          '50%': { transform: 'scale(1.05)' },
-          '100%': { transform: 'scale(1)' },
+          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+          '50%': { transform: 'scale(1.05)', opacity: '0.7' },
         },
-      },
-      animation: {
-        'pulse-slow': 'slowPulse 6s ease-in-out infinite',
       },
     },
   },

@@ -1,9 +1,10 @@
-
-import React from 'react'
-import Onboarding from './pages/Onboarding'
+import React from "react";
+import LandingPage from "./pages/LandingPage";
 
 function App() {
-  return <Onboarding />
+  return <LandingPage />;
 }
 
-export default App
+export default App;
+
+
