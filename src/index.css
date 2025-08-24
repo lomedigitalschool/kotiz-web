@@ -7,7 +7,6 @@ body {
   font-family: 'Roboto', sans-serif;
 }
 
-
 @keyframes slowPulse {
   0% {
     transform: scale(1);
