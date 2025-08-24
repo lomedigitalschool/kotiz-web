@@ -1,0 +1,24 @@
+:root {
+  --primary: #4ca260;
+  --secondary: #3B5BAB;
+  --text: #000000;
+  --background: #FFFFFF;
+  --light-gray: #f0f0f0;
+  --medium-gray: #e0e0e0;
+  --dark-gray: #888888;
+  --success: #4ca260;
+  --error: #e74c3c;
+  --warning: #f39c12;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Roboto', sans-serif;
+}
+
+body {
+  background-color: #f5f7fb;
+  color: var(--text);
+}

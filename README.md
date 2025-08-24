@@ -30,18 +30,25 @@ npm run dev
 ```
 src/
 ├── components/      # Composants réutilisables
-├── pages/          # Pages de l'application
-├── services/       # Services API
-├── utils/          # Utilitaires
-├── App.js          # Composant principal
-└── index.js        # Point d'entrée
+│   ├── Header.jsx   # En-tête principal avec navigation
+│   ├── Button.jsx   # Bouton réutilisable avec styles personnalisés
+├── pages/           # Pages de l'application
+│   ├── explorePage.jsx # Page pour explorer et filtrer les campagnes
+│   ├── LandingPage.jsx # Page d'accueil principale
+│   ├── Register.jsx    # Page d'inscription des utilisateurs
+├── theme/           # Thèmes et styles globaux
+│   ├── colors.js    # Définition des couleurs principales de l'application
+├── services/        # Services API
+├── utils/           # Utilitaires
+├── App.js           # Composant principal
+└── index.js         # Point d'entrée
 ```
 
 ## Fonctionnalités
 
-- Authentification (connexion/inscription)
-- Contributions anonymes et authentifiées
-- Interface utilisateur responsive
+- **Navigation** : Le composant `Header.jsx` fournit une barre de navigation avec des liens vers les sections principales.
+- **Exploration des campagnes** : La page `explorePage.jsx` permet de rechercher, filtrer et trier les campagnes.
+- **Thème cohérent** : Les couleurs principales sont définies dans `theme/colors.js` pour garantir une cohérence visuelle.
 
 ## Technologies utilisées
 
