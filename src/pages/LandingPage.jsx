@@ -211,16 +211,16 @@ const LandingPage = () => {
 
         {/* Étapes */}
         <div className="flex flex-col md:flex-row justify-center items-stretch gap-6 max-w-6xl mx-auto px-4">
-          {{
+          { [
             "Créez votre cagnotte en quelques clics",
             "Partagez le lien avec vos proches",
             "Recevez les contributions en toute sécurité"
-          }.map((step, index) => (
+          ].map((step, index) => (
             <div key={index} className="flex flex-col items-center flex-1 px-6 py-8 rounded-xl shadow bg-white min-h-[180px] transition-all duration-300 hover:shadow-lg">
               <div className="flex items-center justify-center w-12 h-12 rounded-full mb-4" style={{ backgroundColor: colors.secondary }}>
                 <p className="font-bold text-xl text-white">{index + 1}</p>
               </div>
-              <p className="text-base font-medium text-center" style={{ color: colors.primary }}>{step.text}</p>
+              <p className="text-base font-medium text-center" style={{ color: colors.primary }}>{step}</p>
             </div>
           ))}
         </div>
