@@ -14,7 +14,7 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
         src="/src/assets/logos/logo_horizontale.png"
         alt="Logo horizontal"
         className="w-40 cursor-pointer"
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} // Retour en haut de la page
+        onClick={() => navigate('/landing')} // Redirection vers la page d'accueil
       />
 
       {/* Navigation principale */}
@@ -51,13 +51,13 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
         >
           Se connecter
         </Button>
-        {/* Bouton pour créer un compte */}
+        {/* Bouton pour créer une cagnotte */}
         <Button 
-          onClick={() => navigate('/register')} 
+          onClick={() => navigate('/create-cagnotte')} 
           variant="primary"
           className="text-sm md:text-base py-3 px-6"
         >
-          Créer un compte
+          Créer une cagnotte
         </Button>
       </div>
     </header>

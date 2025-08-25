@@ -14,7 +14,7 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
         src="/src/assets/logos/logo_horizontale.png"
         alt="Logo horizontal"
         className="w-40 cursor-pointer"
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} // Retour en haut de la page
+        onClick={() => navigate('/landing')} // Redirection vers la page d'accueil
       />
 
       {/* Navigation principale */}

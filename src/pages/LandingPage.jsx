@@ -27,43 +27,43 @@ const LandingPage = () => {
       icon: FaRocket, 
       title: "Création rapide", 
       text: "Créez votre cagnotte en quelques clics. Interface intuitive conçue pour une prise en main immédiate.",
-      bgColor: "bg-blue-50",
+      bgColor: "bg-green-50", // Uniformisation de la couleur de fond
       iconColor: colors.primary
     },
     { 
       icon: FaShieldAlt, 
       title: "Paiement sécurisé", 
       text: "Les contributions sont protégées grâce à notre système fiable. La sécurité financière est cruciale.",
-      bgColor: "bg-green-50",
+      bgColor: "bg-green-50", // Uniformisation de la couleur de fond
       iconColor: colors.primary,
-      featured: true // Indique si cette fonctionnalité est mise en avant
+      featured: false // Indique si cette fonctionnalité est mise en avant
     },
     { 
       icon: FaShareAlt, 
       title: "Partage facile", 
       text: "Partagez le lien via WhatsApp, e-mail ou réseaux sociaux. La collecte gagne en visibilité rapidement.",
-      bgColor: "bg-blue-50",
+      bgColor: "bg-green-50", // Uniformisation de la couleur de fond
       iconColor: colors.primary
     },
     { 
       icon: FaBell, 
       title: "Notifications", 
       text: "Recevez des alertes quand quelqu'un contribue ou quand la cagnotte approche de son objectif.",
-      bgColor: "bg-green-50",
+      bgColor: "bg-green-50", // Uniformisation de la couleur de fond
       iconColor: colors.primary
     },
     { 
       icon: FaTools, 
       title: "Gestion flexible", 
       text: "Modifiez la cagnotte, ajoutez des objectifs ou retirez des fonds facilement.",
-      bgColor: "bg-blue-50",
+      bgColor: "bg-green-50", // Uniformisation de la couleur de fond
       iconColor: colors.primary
     },
     { 
       icon: FaLock, 
       title: "Confidentialité", 
       text: "Vos informations et celles de vos participants restent privées et sécurisées.",
-      bgColor: "bg-green-50",
+      bgColor: "bg-green-50", // Uniformisation de la couleur de fond
       iconColor: colors.primary
     }
   ];
@@ -240,8 +240,8 @@ const LandingPage = () => {
       </section>
 
       {/* Footer avec logo horizontal */}
-      <footer className="bg-gray-100 py-6 mt-12">
-        <div className="container mx-auto flex justify-center items-center">
+      <footer className="bg-gray-100 py-6 mt-0">
+        <div className="container mx-auto flex justify-center h-full items-center">
           <img
             src="/src/assets/logos/logo_horizontale.png"
             alt="Logo horizontal"

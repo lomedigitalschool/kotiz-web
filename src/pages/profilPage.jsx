@@ -90,9 +90,7 @@ const ProfilePage = () => {
             <button className="p-2 rounded-full hover:bg-gray-100" onClick={() => navigate("/landing")}>
               <FiHome variant="primary" />
             </button>
-            <button className="p-2 rounded-full hover:bg-gray-100">
-              <FiGrid className="text-gray-600 text-xl" />
-            </button>
+            
           </div>
         </div>
       </header>
@@ -339,7 +337,7 @@ const ProfilePage = () => {
                   {projetsCrees.length === 0 ? (
                     <div>
                       <p>Aucun projet créé pour l'instant.</p>
-                      <button className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                      <button className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition" onClick={() => navigate("/create-cagnotte")}>
                         Créer un projet
                       </button>
                     </div>

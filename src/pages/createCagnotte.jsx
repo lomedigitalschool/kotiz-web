@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import vector0 from "../assets/logo.png";
+import LandingPage from "./LandingPage";
 import illustration from "../assets/illustrations/_Cagnotte Digitale Amicale_simple_compose.png";
 
 const CreerCagnotte = () => {
@@ -51,10 +51,13 @@ const CreerCagnotte = () => {
     <div className="flex flex-col min-h-screen items-center bg-[#f7f9fc]">
       {/* Header */}
       <header className="w-full border-b border-[#e5e8ea] flex items-center justify-between px-10 py-4 bg-white">
-        <div className="flex items-center gap-3">
-          <img src={vector0} alt="Logo" className="w-6 h-6" />
-          <h1 className="font-bold text-lg text-[#4AC260]">KOTIZ</h1>
-        </div>
+        {/* Logo horizontal de l'application */}
+      <img
+        src="/src/assets/logos/logo_horizontale.png"
+        alt="Logo horizontal"
+        className="w-40 cursor-pointer"
+        onClick={() => navigate("/landing")} // Retour sur la page d'accueil
+      />
         <nav className="flex gap-6 text-sm text-[#4ac260] font-medium">
           <a href="/">Accueil</a>
           <a href="/explorePage">Explorer</a>
