@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import LandingPage from "./LandingPage";
+import api from "../services/api";
 import illustration from "../assets/illustrations/_Cagnotte Digitale Amicale_simple_compose.png";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { v4 as uuidv4 } from "uuid";
@@ -45,41 +46,56 @@ const CreerCagnotte = () => {
     setPreview(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const newCagnotte = {
-      ...form,
-      imageUrl: preview || null, 
-      collectedAmount: 0,
-      contributors: [],
-      id: Date.now(),
-      status: "active",
-    };
+    try {
+      const formData = new FormData();
+      
+      // Ajout des données du formulaire
+      Object.keys(form).forEach(key => {
+        if (key !== 'imageFile') {
+          formData.append(key, form[key]);
+        }
+      });
 
-    // Ajouter au store
-    useCagnotteStore.getState().addCagnotte(newCagnotte);
+      // Ajout de l'image si elle existe
+      if (form.imageFile) {
+        formData.append('image', form.imageFile);
+      }
 
-    // Sauvegarde locale,   cest temporaire
-    const saved = JSON.parse(localStorage.getItem("localCagnottes") || "[]");
-    localStorage.setItem("localCagnottes", JSON.stringify([...saved, newCagnotte]));
+      // Envoi à l'API
+      const response = await api.post('/cagnottes', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-    alert("🎉 Cagnotte créée avec succès !");
+      if (response.data) {
+        // Mettre à jour le store local
+        useCagnotteStore.getState().addCagnotte(response.data);
+        
+        alert("🎉 Cagnotte créée avec succès !");
 
-    // Reset formulaire
-    setForm({
-      title: "",
-      description: "",
-      goalAmount: "",
-      currency: "XOF",
-      deadline: "",
-      type: "public",
-      participantLimit: "",
-      imageFile: null,
-    });
-    setPreview(null);
+        // Reset formulaire
+        setForm({
+          title: "",
+          description: "",
+          goalAmount: "",
+          currency: "XOF",
+          deadline: "",
+          type: "public",
+          participantLimit: "",
+          imageFile: null,
+        });
+        setPreview(null);
 
-    navigate("/dashboard");
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      alert("Une erreur est survenue lors de la création de la cagnotte : " + 
+            (error.response?.data?.message || error.message));
+    }
   };
 
 

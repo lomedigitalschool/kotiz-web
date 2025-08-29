@@ -45,10 +45,10 @@ export default function App() {
       <Route path="/profil" element={<ProfilPage />} />
       <Route path="/explorePage" element={<ExplorePage />} />
       <Route path="/cagnottes/:id" element={<CagnotteDetails />} />
-       <Route path="/contribute/:id" element={<ContributePage />} /> {/* <-- AJOUT */}
-       <Route path="/contributors/:id" element={<ContributorsPage />} />
+      <Route path="/contribute/:id" element={<ContributePage />} /> {/* <-- AJOUT */}
+      <Route path="/contributors/:id" element={<ContributorsPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/edit-cagnotte/:id" element={<EditCagnotte />} />
+      <Route path="/edit-cagnotte/:id" element={<EditCagnotte />} />
 
     </Routes>
   );
