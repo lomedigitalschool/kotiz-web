@@ -25,9 +25,31 @@ export const Register = () => {
   const nextStep = () => setStep(step + 1);
   const prevStep = () => setStep(step - 1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password !== form.confirmPassword) {
+      alert("Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    try {
+      const response = await api.post('/auth/register', {
+        name: `${form.nom} ${form.prenom}`,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        notificationType: form.notificationType,
+        defaultCurrency: form.defaultCurrency
+      });
+
+      if (response.data.token) {
+        // Stocker le token
+        localStorage.setItem('token', response.data.token);
+        // Rediriger vers le tableau de bord
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      alert(error.response?.data?.error || "Erreur lors de l'inscription");
       alert("Les mots de passe ne correspondent pas.");
       return;
     }

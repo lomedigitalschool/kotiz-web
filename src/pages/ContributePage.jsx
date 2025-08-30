@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 
 const ContributePage = () => {
   const { id } = useParams();
-  const { cagnotte, contributions, loading, error, fetchCagnotte, addContribution } =
-    useCagnotteStore();
+  const [cagnotte, setCagnotte] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [amount, setAmount] = useState("");
   const [anonymous, setAnonymous] = useState(false);
@@ -22,8 +24,21 @@ const ContributePage = () => {
 
   // Chargement cagnotte au montage
   useEffect(() => {
-    fetchCagnotte(Number(id));
-  }, [id, fetchCagnotte]);
+    const fetchCagnotteData = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/cagnottes/${id}`);
+        setCagnotte(response.data);
+        setError(null);
+      } catch (err) {
+        setError(err.response?.data?.message || "Erreur lors du chargement de la cagnotte");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCagnotteData();
+  }, [id]);
 
   if (loading) return <p style={{ marginTop: "5rem", textAlign: "center", color: "#6b7280" }}>Chargement...</p>;
   if (error) return <p style={{ marginTop: "5rem", textAlign: "center", color: "#dc2626" }}>{error}</p>;

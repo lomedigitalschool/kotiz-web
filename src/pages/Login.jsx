@@ -1,9 +1,12 @@
 // Page de connexion
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import vector0 from "../assets/logo.png";
 import { FaArrowLeft } from "react-icons/fa";
+import api from "../services/api";
 
 export const Login = () => {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     identifier: "",
     password: "",
@@ -15,10 +18,26 @@ export const Login = () => {
     setForm({ ...form, [name]: type === "checkbox" ? checked : value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Formulaire de connexion :", form);
-    // ⚡ Ici tu pourras appeler ton backend (API Kotiz)
+    try {
+      const response = await api.post('/auth/login', {
+        identifier: form.identifier, // Email ou téléphone
+        password: form.password
+      });
+
+      if (response.data.token) {
+        // Stocker le token
+        localStorage.setItem('token', response.data.token);
+        if (form.remember) {
+          localStorage.setItem('rememberMe', 'true');
+        }
+        // Rediriger vers le tableau de bord
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      alert(error.response?.data?.error || "Identifiants incorrects");
+    }
   };
 
   return (
@@ -96,4 +115,3 @@ export const Login = () => {
     </div>
   );
 };
-// Export the component   

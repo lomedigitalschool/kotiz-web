@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import api from "../services/api";
 import QRCode from "react-qr-code";
 import { colors } from "../theme/colors";
 import { useCagnotteStore } from "../stores/cagnotteStore";
@@ -9,14 +10,34 @@ const ITEMS_PER_PAGE = 3;
 const CagnotteDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { cagnotte, contributions, loading, error, fetchCagnotte, currentUser } = useCagnotteStore();
+  const [cagnotte, setCagnotte] = useState(null);
+  const [contributions, setContributions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { currentUser } = useCagnotteStore();
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    if (!cagnotte || cagnotte.id !== Number(id)) {
-      fetchCagnotte(+id); // un petit raccourci pour Number()
-    }
-  }, [id, cagnotte, fetchCagnotte]);
+    const fetchCagnotteDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/cagnottes/${id}`);
+        setCagnotte(response.data);
+        
+        // Récupérer les contributions
+        const contributionsResponse = await api.get(`/cagnottes/${id}/contributions`);
+        setContributions(contributionsResponse.data);
+        
+        setError(null);
+      } catch (err) {
+        setError(err.response?.data?.message || "Erreur lors du chargement de la cagnotte");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCagnotteDetails();
+  }, [id]);
 
   if (loading) return <p className="text-center mt-[80px] text-gray-500">Chargement...</p>;
   if (error) return <p style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</p>;
