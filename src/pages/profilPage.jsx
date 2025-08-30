@@ -1,47 +1,129 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiSettings, FiBell, FiShield, FiHelpCircle, FiHome, FiGrid, FiLogOut, FiEdit, FiLock, FiPhone } from "react-icons/fi";
 import { useNavigate } from "react-router-dom"; // Importation du hook pour la navigation
+import api from "../services/api";
+import { useCagnotteStore } from "../stores/cagnotteStore";
 
 // Composant principal pour la page de profil utilisateur
 const ProfilePage = () => {
-  const navigate = useNavigate(); // Hook pour naviguer entre les pages
+   const navigate = useNavigate(); // Hook pour naviguer entre les pages
+   const { cagnottes, contributions } = useCagnotteStore();
 
-  // Gestion des états locaux pour les onglets actifs et les données utilisateur
-  const [activeTab, setActiveTab] = useState("soutenues"); // Onglet actif (projets soutenus ou créés)
-  const [userData, setUserData] = useState({
-    name: "Joshua Adebayo", // Nom de l'utilisateur
-    email: "joshua.adebayo@email.com", // Email de l'utilisateur
-    phone: "+234 803 456 7890", // Numéro de téléphone
-    notifications: true, // État des notifications
-    memberSince: "2021", // Année d'inscription
-    location: "Lagos, Nigeria" // Localisation
-  });
+   // Gestion des états locaux pour les onglets actifs et les données utilisateur
+   const [activeTab, setActiveTab] = useState("soutenues"); // Onglet actif (projets soutenus ou créés)
+   const [userData, setUserData] = useState(null);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState(null);
   
   const [isEditing, setIsEditing] = useState(false); // État d'édition
   const [editField, setEditField] = useState(""); // Champ en cours d'édition
   const [editValue, setEditValue] = useState(""); // Nouvelle valeur pour le champ édité
 
-  // Données mockées pour les projets soutenus
-  const projetsSoutenus = [
-    {
-      id: 1,
-      category: "Technologie",
-      title: "Système de sécurité intelligent",
-      description: "Un système révolutionnaire pour protéger les foyers modernes.",
-    },
-    {
-      id: 2,
-      category: "Arts & Crafts",
-      title: "Journaux en cuir faits main",
-      description: "Des carnets élégants pour écrire, dessiner ou capturer vos pensées.",
-    },
-  ];
+  // Récupération des données utilisateur depuis l'API
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
 
-  const projetsCrees = []; // Liste des projets créés par l'utilisateur (vide par défaut)
+        // Vérifier si l'utilisateur est connecté
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setError('Vous devez être connecté pour accéder à votre profil');
+          setLoading(false);
+          return;
+        }
+
+        const response = await api.get('/v1/auth/me');
+        const user = response.data;
+
+        setUserData({
+          id: user.id,
+          name: user.name || "Utilisateur",
+          email: user.email || "",
+          phone: user.phone || "",
+          notifications: true, // Par défaut activé
+          memberSince: user.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear(),
+          location: "Non spécifiée" // À implémenter plus tard si nécessaire
+        });
+
+        setError(null);
+      } catch (err) {
+        console.error('Erreur lors du chargement du profil:', err);
+        if (err.response?.status === 401) {
+          setError('Session expirée. Veuillez vous reconnecter.');
+        } else {
+          setError('Erreur lors du chargement du profil utilisateur');
+        }
+        // Données par défaut en cas d'erreur
+        setUserData({
+          name: "Utilisateur",
+          email: "",
+          phone: "",
+          notifications: true,
+          memberSince: new Date().getFullYear(),
+          location: "Non spécifiée"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Calcul des projets créés et soutenus depuis les données du store
+  const projetsCrees = cagnottes.filter(c => c.userId === userData?.id) || [];
+  const projetsSoutenus = contributions.map(contrib => {
+    const cagnotte = cagnottes.find(c => c.id === contrib.cagnotteId);
+    return cagnotte ? {
+      id: cagnotte.id,
+      category: cagnotte.type === 'public' ? 'Publique' : 'Privée',
+      title: cagnotte.title,
+      description: cagnotte.description,
+      amount: contrib.amount,
+      currency: contrib.currency
+    } : null;
+  }).filter(Boolean);
+
+  // Gestion du chargement et des erreurs
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement du profil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-600">Aucune donnée utilisateur trouvée</p>
+      </div>
+    );
+  }
 
   // Fonction pour obtenir l'initiale du nom de l'utilisateur
   const getInitial = () => {
-    return userData.name.charAt(0).toUpperCase();
+    return userData.name ? userData.name.charAt(0).toUpperCase() : "?";
   };
 
   // Fonction pour gérer l'édition des informations utilisateur
@@ -133,7 +215,17 @@ const ProfilePage = () => {
                 <span>Aide</span>
               </button>
               
-              <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-red-600 hover:bg-red-50 transition mt-4">
+              <button
+                className="w-full flex items-center space-x-2 p-3 rounded-lg text-red-600 hover:bg-red-50 transition mt-4"
+                onClick={() => {
+                  if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('cagnottes');
+                    localStorage.removeItem('contributions');
+                    navigate('/login');
+                  }
+                }}
+              >
                 <FiLogOut className="text-red-500" />
                 <span>Déconnexion</span>
               </button>
@@ -316,37 +408,95 @@ const ProfilePage = () => {
             <div>
               {activeTab === "soutenues" && (
                 <div className="space-y-4">
-                  {projetsSoutenus.map((projet) => (
-                    <div
-                      key={projet.id}
-                      className="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
-                    >
-                      <p className="text-sm text-indigo-600 font-medium">{projet.category}</p>
-                      <h3 className="text-lg font-bold text-gray-800">{projet.title}</h3>
-                      <p className="text-gray-600">{projet.description}</p>
-                      <button className="mt-2 text-indigo-600 font-semibold hover:underline">
-                        Voir le projet
+                  {projetsSoutenus.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-600">Aucun projet soutenu pour l'instant.</p>
+                      <button
+                        className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                        onClick={() => navigate("/explorePage")}
+                      >
+                        Explorer les projets
                       </button>
                     </div>
-                  ))}
+                  ) : (
+                    projetsSoutenus.map((projet) => (
+                      <div
+                        key={projet.id}
+                        className="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-sm text-indigo-600 font-medium">{projet.category}</p>
+                          <span className="text-sm font-semibold text-green-600">
+                            {(projet.amount || 0).toLocaleString()} {projet.currency}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">{projet.title}</h3>
+                        <p className="text-gray-600 mb-3">{projet.description}</p>
+                        <button
+                          className="text-indigo-600 font-semibold hover:underline"
+                          onClick={() => navigate(`/cagnottes/${projet.id}`)}
+                        >
+                          Voir le projet
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
 
               {activeTab === "creees" && (
-                <div className="text-center text-gray-600 py-8">
+                <div className="space-y-4">
                   {projetsCrees.length === 0 ? (
-                    <div>
-                      <p>Aucun projet créé pour l'instant.</p>
-                      <button className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition" onClick={() => navigate("/create-cagnotte")}>
+                    <div className="text-center py-8">
+                      <p className="text-gray-600">Aucun projet créé pour l'instant.</p>
+                      <button
+                        className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                        onClick={() => navigate("/create-cagnotte")}
+                      >
                         Créer un projet
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {projetsCrees.map((projet) => (
-                        <div key={projet.id}>{/* Carte projet similaire */}</div>
-                      ))}
-                    </div>
+                    projetsCrees.map((projet) => (
+                      <div
+                        key={projet.id}
+                        className="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-sm text-indigo-600 font-medium">
+                            {projet.type === 'public' ? 'Publique' : 'Privée'}
+                          </p>
+                          <span className={`text-sm font-semibold px-2 py-1 rounded ${
+                            projet.status === 'active' ? 'bg-green-100 text-green-800' :
+                            projet.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {projet.status === 'active' ? 'Actif' :
+                             projet.status === 'pending' ? 'En attente' : projet.status}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">{projet.title}</h3>
+                        <p className="text-gray-600 mb-2">{projet.description}</p>
+                        <div className="flex justify-between items-center text-sm text-gray-500">
+                          <span>Objectif: {(projet.goalAmount || 0).toLocaleString()} {projet.currency}</span>
+                          <span>Collecté: {(projet.currentAmount || 0).toLocaleString()} {projet.currency}</span>
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            className="text-indigo-600 font-semibold hover:underline"
+                            onClick={() => navigate(`/cagnottes/${projet.id}`)}
+                          >
+                            Voir le projet
+                          </button>
+                          <button
+                            className="text-green-600 font-semibold hover:underline"
+                            onClick={() => navigate(`/edit-cagnotte/${projet.id}`)}
+                          >
+                            Modifier
+                          </button>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               )}

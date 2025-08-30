@@ -49,13 +49,31 @@ const CreerCagnotte = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Vérifier si l'utilisateur est connecté
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert("Vous devez être connecté pour créer une cagnotte. Veuillez vous connecter d'abord.");
+      return;
+    }
+
     try {
       const formData = new FormData();
-      
-      // Ajout des données du formulaire
-      Object.keys(form).forEach(key => {
-        if (key !== 'imageFile') {
-          formData.append(key, form[key]);
+
+      // Conversion et validation des données
+      const processedData = {
+        title: form.title,
+        description: form.description,
+        goalAmount: parseFloat(form.goalAmount) || 0,
+        currency: form.currency,
+        deadline: form.deadline || null,
+        type: form.type,
+        participantLimit: form.participantLimit ? parseInt(form.participantLimit) : null
+      };
+
+      // Ajout des données traitées
+      Object.keys(processedData).forEach(key => {
+        if (processedData[key] !== null && processedData[key] !== undefined) {
+          formData.append(key, processedData[key]);
         }
       });
 
@@ -64,8 +82,10 @@ const CreerCagnotte = () => {
         formData.append('image', form.imageFile);
       }
 
+      console.log('Données envoyées:', Object.fromEntries(formData));
+
       // Envoi à l'API
-      const response = await api.post('/cagnottes', formData, {
+      const response = await api.post('/v1/pulls', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -93,8 +113,23 @@ const CreerCagnotte = () => {
         navigate("/dashboard");
       }
     } catch (error) {
-      alert("Une erreur est survenue lors de la création de la cagnotte : " + 
-            (error.response?.data?.message || error.message));
+      console.error("Erreur détaillée:", error);
+      console.error("Données de la réponse:", error.response?.data);
+      console.error("Status:", error.response?.status);
+
+      let errorMessage = "Une erreur est survenue lors de la création de la cagnotte.";
+
+      if (error.response?.status === 401) {
+        errorMessage = "Vous devez être connecté pour créer une cagnotte. Veuillez vous reconnecter.";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Données invalides. Vérifiez que tous les champs requis sont remplis correctement.";
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+
+      alert(errorMessage);
     }
   };
 

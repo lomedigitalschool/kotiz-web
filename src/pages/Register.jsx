@@ -3,6 +3,7 @@ import vector0 from "../assets/logo.png";
 import illustration from "../assets/illustrations/2_Interaction Fintech Sécurisée_simple_compose.png";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
+import api from "../services/api";
 
 export const Register = () => {
   const navigate = useNavigate();
@@ -27,16 +28,35 @@ export const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validation des champs requis
+    if (!form.nom || !form.prenom) {
+      alert("Le nom et le prénom sont requis");
+      return;
+    }
+
+    if (!form.password) {
+      alert("Le mot de passe est requis");
+      return;
+    }
+
+    // Validation des mots de passe
     if (form.password !== form.confirmPassword) {
       alert("Les mots de passe ne correspondent pas");
       return;
     }
 
+    // Validation email ou téléphone (au moins un des deux)
+    if (!form.email && !form.phone) {
+      alert("Veuillez fournir un email ou un numéro de téléphone.");
+      return;
+    }
+
     try {
-      const response = await api.post('/auth/register', {
-        name: `${form.nom} ${form.prenom}`,
-        email: form.email,
-        phone: form.phone,
+      const response = await api.post('/v1/auth/register', {
+        name: `${form.nom.trim()} ${form.prenom.trim()}`,
+        email: form.email || null,
+        phone: form.phone || null,
         password: form.password,
         notificationType: form.notificationType,
         defaultCurrency: form.defaultCurrency
@@ -45,30 +65,22 @@ export const Register = () => {
       if (response.data.token) {
         // Stocker le token
         localStorage.setItem('token', response.data.token);
+        // Afficher message de succès
+        alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
         // Rediriger vers le tableau de bord
         navigate('/dashboard');
       }
     } catch (error) {
-      alert(error.response?.data?.error || "Erreur lors de l'inscription");
-      alert("Les mots de passe ne correspondent pas.");
-      return;
+      console.error("Erreur lors de l'inscription:", error);
+      const errorMessage = error.response?.data?.error || "Erreur lors de l'inscription";
+      
+      // Messages d'erreur plus clairs
+      if (errorMessage.includes("déjà utilisé")) {
+        alert("Cet email ou ce numéro de téléphone est déjà associé à un compte existant. Veuillez utiliser des informations différentes ou vous connecter.");
+      } else {
+        alert(errorMessage);
+      }
     }
-    if (!form.email && !form.phone) {
-      alert("Veuillez fournir un email ou un numéro de téléphone.");
-      return;
-    }
-    const userData = {
-      name: `${form.nom} ${form.prenom}`,
-      email: form.email,
-      phone: form.phone,
-      password: form.password,
-      preferences: {
-        notificationType: form.notificationType,
-        defaultCurrency: form.defaultCurrency,
-      },
-    };
-    console.log("Données envoyées au backend :", userData);
-    // ⚡ Ici tu pourras appeler ton backend (API Kotiz) avec userData
   };
 
   return (

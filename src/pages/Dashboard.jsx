@@ -23,6 +23,32 @@ const Dashboard = () => {
     }
   }, [fetchAllCagnottes, fetchUserContributions]);
 
+  // Calculer les statistiques utilisateur
+  useEffect(() => {
+    if (cagnottes.length > 0) {
+      const totalCollected = cagnottes.reduce((sum, c) => sum + (c.currentAmount || 0), 0);
+      const activeCount = cagnottes.filter(c => c.status === 'active' || c.status === 'pending' || !c.status).length;
+      const totalContributors = new Set(contributions.map(c => c.userId)).size;
+
+      const stats = {
+        totalCollected,
+        activeCount,
+        totalContributors
+      };
+
+      console.log('Statistiques calculées:', stats);
+      console.log('Cagnottes:', cagnottes.map(c => ({ id: c.id, status: c.status, currentAmount: c.currentAmount })));
+
+      setUserStats(stats);
+    } else {
+      setUserStats({
+        totalCollected: 0,
+        activeCount: 0,
+        totalContributors: 0
+      });
+    }
+  }, [cagnottes, contributions]);
+
   if (loading) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>Chargement...</p>;
   if (error) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#dc2626" }}>{error}</p>;
 
@@ -47,7 +73,7 @@ const Dashboard = () => {
 
         <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Montants collectés</p>
-          <p className="text-2xl font-bold">{userStats.totalCollected?.toLocaleString() || 0} FCFA  </p>
+          <p className="text-2xl font-bold">{(userStats.totalCollected || 0).toLocaleString()} FCFA  </p>
         </div>
 
         <div className="bg-white rounded-xl shadow   p-4 text-center">
@@ -73,7 +99,7 @@ const Dashboard = () => {
               <XAxis dataKey="title"  />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="collectedAmount"  fill={colors.primary} />
+              <Bar dataKey="currentAmount"  fill={colors.primary} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -84,7 +110,7 @@ const Dashboard = () => {
             <PieChart>
               <Pie
                 data={cagnottes}
-                dataKey="collectedAmount"
+                dataKey="currentAmount"
                 nameKey="title"
                 cx="50%"
                 cy="50%"
@@ -108,10 +134,23 @@ const Dashboard = () => {
       <h2 className="text-2xl font-bold mb-4">Mes Cagnottes</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {cagnottes.map(c => {
-          const progress = Math.min((c.collectedAmount / c.goalAmount) * 100, 100);
+          const collectedAmount = c.currentAmount || c.collectedAmount || 0;
+          const goalAmount = c.goalAmount || 0;
+          const progress = goalAmount > 0 ? Math.min((collectedAmount / goalAmount) * 100, 100) : 0;
+
           return (
             <div key={c.id} className="bg-white rounded-2xl shadow p-6">
-              <img src={c.imageUrl} alt={c.title} className="w-full h-40 object-cover rounded-lg mb-4" loading="lazy" />
+              {c.imageUrl && c.imageUrl !== 'null' && c.imageUrl !== 'undefined' && (
+                <img
+                  src={c.imageUrl.startsWith('http') ? c.imageUrl : `http://localhost:5000${c.imageUrl}`}
+                  alt={c.title}
+                  className="w-full h-40 object-cover rounded-lg mb-4"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              )}
               <h3 className="text-xl font-bold mb-1">{c.title}</h3>
               <p className="text-gray-700 mb-2">{c.description}</p>
 
@@ -125,7 +164,7 @@ const Dashboard = () => {
                 <div className="h-4 rounded-full" style={{ width: `${progress}%`, backgroundColor: colors.primary }} />
               </div>
               <p className="text-right text-gray-700 font-semibold mb-2">
-                {c.collectedAmount.toLocaleString()} / {c.goalAmount.toLocaleString()} {c.currency}
+                {collectedAmount.toLocaleString()} / {goalAmount.toLocaleString()} {c.currency}
               </p>
 
               <div className="flex gap-2 mt-2">
@@ -183,7 +222,7 @@ const Dashboard = () => {
                     title={contrib.anonymous ? "Anonyme" : contrib.user}
                   >
                     <span className="truncate">{contrib.anonymous ? "Anonyme" : contrib.user}</span>
-                    <span className="font-semibold">{contrib.amount.toLocaleString()} {contrib.currency}</span>
+                    <span className="font-semibold">{(contrib.amount || 0).toLocaleString()} {contrib.currency}</span>
                   </div>
                 ))}
               </div>
@@ -223,7 +262,7 @@ const Dashboard = () => {
                   <td className="px-4 py-3 text-gray-800 font-semibold truncate max-w-xs">{c.cagnotteTitle}</td>
                   <td className="px-6 py-3 text-gray-500">{new Date(c.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-center text-gray-800 font-bold w-28">
-                    {c.amount.toLocaleString()} {c.currency}
+                    {(c.amount || 0).toLocaleString()} {c.currency}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span

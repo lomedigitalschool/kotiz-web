@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
+import api from "../services/api";
 
 const EditCagnotte = () => {
   const { id } = useParams();
@@ -68,14 +69,41 @@ const EditCagnotte = () => {
     setErrorMsg("");
 
     try {
-      // simulation API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Préparer les données pour l'API
+      const updateData = {
+        title: formData.title,
+        description: formData.description,
+        goalAmount: parseFloat(formData.goalAmount),
+        currency: formData.currency,
+        deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null,
+        type: formData.type,
+        status: formData.status
+      };
 
-      updateCagnotte({ ...cagnotte, ...formData });
-      setSuccessMsg("Cagnotte modifiée avec succès !");
-      setTimeout(() => navigate(`/cagnottes/${id}`), 1000);
+      console.log('Données à envoyer pour mise à jour:', updateData);
+
+      // Appel API pour mettre à jour la cagnotte
+      const response = await api.put(`/v1/pulls/${id}`, updateData);
+
+      console.log('Réponse de l\'API:', response.data);
+
+      if (response.data) {
+        // Mettre à jour le store local
+        updateCagnotte(response.data.pull || response.data);
+        setSuccessMsg("Cagnotte modifiée avec succès !");
+
+        // Rediriger après un court délai avec indication de modification
+        setTimeout(() => {
+          console.log('Redirection vers:', `/cagnottes/${id}`);
+          navigate(`/cagnottes/${id}`, {
+            state: { fromEdit: true, timestamp: Date.now() }
+          });
+        }, 1500);
+      }
     } catch (err) {
-      setErrorMsg("Erreur lors de la modification. Veuillez réessayer.");
+      console.error('Erreur lors de la modification:', err);
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || "Erreur lors de la modification. Veuillez réessayer.";
+      setErrorMsg(errorMessage);
     } finally {
       setLoading(false);
     }

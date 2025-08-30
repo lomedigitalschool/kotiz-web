@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import QRCode from "react-qr-code";
 import { colors } from "../theme/colors";
@@ -8,28 +8,32 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 const ITEMS_PER_PAGE = 3;
 
 const CagnotteDetails = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [cagnotte, setCagnotte] = useState(null);
-  const [contributions, setContributions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const { currentUser } = useCagnotteStore();
-  const [page, setPage] = useState(1);
+   const { id } = useParams();
+   const navigate = useNavigate();
+   const location = useLocation();
+   const [cagnotte, setCagnotte] = useState(null);
+   const [contributions, setContributions] = useState([]);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState(null);
+   const { currentUser } = useCagnotteStore();
+   const [page, setPage] = useState(1);
+   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchCagnotteDetails = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/cagnottes/${id}`);
+        console.log('Chargement de la cagnotte:', id, 'Refresh key:', refreshKey);
+
+        const response = await api.get(`/v1/pulls/${id}`);
+        console.log('Données reçues:', response.data);
+
         setCagnotte(response.data);
-        
-        // Récupérer les contributions
-        const contributionsResponse = await api.get(`/cagnottes/${id}/contributions`);
-        setContributions(contributionsResponse.data);
-        
+        setContributions(response.data.contributions || []);
+
         setError(null);
       } catch (err) {
+        console.error('Erreur lors du chargement:', err);
         setError(err.response?.data?.message || "Erreur lors du chargement de la cagnotte");
       } finally {
         setLoading(false);
@@ -37,7 +41,16 @@ const CagnotteDetails = () => {
     };
 
     fetchCagnotteDetails();
-  }, [id]);
+  }, [id, refreshKey]);
+
+  // Détecter si on vient d'une modification
+  useEffect(() => {
+    const state = location.state;
+    if (state && state.fromEdit) {
+      console.log('Détection d\'une modification, forçage du rechargement');
+      setRefreshKey(prev => prev + 1);
+    }
+  }, [location.state]);
 
   if (loading) return <p className="text-center mt-[80px] text-gray-500">Chargement...</p>;
   if (error) return <p style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</p>;
@@ -48,7 +61,7 @@ const CagnotteDetails = () => {
   const canAccess = cagnotte.type === "public" || cagnotte.userId === userId;
   if (!canAccess) return <p className="text-center mt-16 text-red-500">Accès restreint</p>;
 
-  const progress = Math.min((cagnotte.collectedAmount / cagnotte.goalAmount) * 100, 100);
+  const progress = Math.min(((cagnotte.currentAmount || 0) / cagnotte.goalAmount) * 100, 100);
 
   // stats
   const allContribs = contributions.filter(c => c.cagnotteId === cagnotte.id);
@@ -57,13 +70,15 @@ const CagnotteDetails = () => {
 
   const nbContribs = allContribs.length;
   const avgDonation = allContribs.reduce((acc, c) => acc + c.amount, 0) / (nbContribs || 1);
-  const remain = Math.max(cagnotte.goalAmount - cagnotte.collectedAmount, 0);
+  const remain = Math.max(cagnotte.goalAmount - (cagnotte.currentAmount || 0), 0);
 
   const creationDate = new Date(cagnotte.createdAt);
   const daysElapsed = Math.floor((Date.now() - creationDate) / (1000 * 60 * 60 * 24));
 
+  const shareLink = `${window.location.origin}/cagnottes/${cagnotte.id}`;
+
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(cagnotte.shareLink);
+    navigator.clipboard.writeText(shareLink);
     alert("Lien copié !");
   };
 
@@ -71,12 +86,21 @@ const CagnotteDetails = () => {
     <div className="p-5 font-roboto max-w-6xl mx-auto">
       <div className="bg-white rounded-[18px] shadow-lg overflow-hidden">
         <div>
-          <img
-            src={cagnotte.imageUrl}
-            alt={cagnotte.title}
-            className="w-full h-64 object-cover rounded-md mb-3"
-            loading="lazy"
-          />
+          {cagnotte.imageUrl && cagnotte.imageUrl !== 'null' && cagnotte.imageUrl !== 'undefined' ? (
+            <img
+              src={cagnotte.imageUrl.startsWith('http') ? cagnotte.imageUrl : `http://localhost:5000${cagnotte.imageUrl}`}
+              alt={cagnotte.title}
+              className="w-full h-64 object-cover rounded-md mb-3"
+              loading="lazy"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          ) : (
+            <div className="w-full h-64 bg-gray-200 rounded-md mb-3 flex items-center justify-center">
+              <span className="text-gray-500">Aucune image</span>
+            </div>
+          )}
         </div>
 
         <div className="p-6 space-y-6">
@@ -159,15 +183,16 @@ const CagnotteDetails = () => {
                 />
               )}
               <span>
-                <strong>Créateur :</strong> {cagnotte.creator?.name || "—"}
+                <strong>Créateur :</strong> {cagnotte.creator?.name || cagnotte.owner?.name || "Utilisateur"}
               </span>
             </div>
             <p><strong>Date création :</strong> {creationDate.toLocaleDateString()}</p>
             <p><strong>Jours écoulés :</strong> {daysElapsed} jours</p>
-            <p><strong>Date limite :</strong> {new Date(cagnotte.deadline).toLocaleDateString()}</p>
+            <p><strong>Date limite :</strong> {cagnotte.deadline ? new Date(cagnotte.deadline).toLocaleDateString() : 'Aucune limite'}</p>
             <p><strong>Contributeurs :</strong> {nbContribs}</p>
             <p><strong>Don moyen :</strong> {avgDonation.toFixed(2)} {cagnotte.currency}</p>
             <p><strong>Montant restant :</strong> {remain.toLocaleString()} {cagnotte.currency}</p>
+            <p><strong>Montant collecté :</strong> {(cagnotte.currentAmount || 0).toLocaleString()} {cagnotte.currency}</p>
           </div>
 
           {/* Description */}
@@ -222,9 +247,9 @@ const CagnotteDetails = () => {
           <div>
             <h2 className="text-2xl font-semibold mb-2 border-b pb-1">Partager cette cagnotte</h2>
             <div className="flex flex-col md:flex-row items-center gap-4 mt-2">
-              <QRCode value={cagnotte.shareLink} size={120} />
+              <QRCode value={shareLink} size={120} />
               <div className="flex flex-col gap-2">
-                <p className="break-all text-gray-700">{cagnotte.shareLink}</p>
+                <p className="break-all text-gray-700">{shareLink}</p>
                 <button
                   onClick={handleCopyLink}
                   className="px-6 py-2 text-white rounded-md hover:opacity-90 transition"
