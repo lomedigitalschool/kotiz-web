@@ -21,7 +21,7 @@ export const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post('/auth/login', {
+      const response = await api.post('/v1/auth/login', {
         identifier: form.identifier, // Email ou téléphone
         password: form.password
       });

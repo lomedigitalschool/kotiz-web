@@ -4,30 +4,31 @@ import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 
 const ContributePage = () => {
-  const { id } = useParams();
-  const [cagnotte, setCagnotte] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+   const { id } = useParams();
+   const { addContribution } = useCagnotteStore();
+   const [cagnotte, setCagnotte] = useState(null);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState(null);
 
-  const [amount, setAmount] = useState("");
-  const [anonymous, setAnonymous] = useState(false);
-  const [message, setMessage] = useState("");
-  const [receipt, setReceipt] = useState(null);
+   const [amount, setAmount] = useState("");
+   const [anonymous, setAnonymous] = useState(false);
+   const [message, setMessage] = useState("");
+   const [receipt, setReceipt] = useState(null);
 
-  // États locaux pour la soumission
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
+   // États locaux pour la soumission
+   const [submitting, setSubmitting] = useState(false);
+   const [submitError, setSubmitError] = useState("");
 
-  // Erreurs inline
-  const [amountError, setAmountError] = useState("");
-  const [messageError, setMessageError] = useState("");
+   // Erreurs inline
+   const [amountError, setAmountError] = useState("");
+   const [messageError, setMessageError] = useState("");
 
   // Chargement cagnotte au montage
   useEffect(() => {
     const fetchCagnotteData = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/cagnottes/${id}`);
+        const response = await api.get(`/v1/pulls/${id}`);
         setCagnotte(response.data);
         setError(null);
       } catch (err) {
@@ -72,13 +73,15 @@ const ContributePage = () => {
 
       const mockContribution = {
         ...data,
-        id: contributions.length + 1,
+        id: Date.now(),
         paymentReference: `PAY-${Date.now()}`,
         createdAt: new Date().toISOString(),
+        currency: cagnotte.currency,
+        cagnotteTitle: cagnotte.title
       };
 
       const mockTransaction = {
-        id: Date.now(),
+        id: Date.now() + 1,
         contributionId: mockContribution.id,
         paymentMethodId: 1,
         amount: mockContribution.amount,
@@ -89,13 +92,17 @@ const ContributePage = () => {
         createdAt: new Date().toISOString(),
       };
 
-      addContribution(mockContribution);
+      // Ajouter la contribution au store
+      addContribution({
+        ...mockContribution,
+        user: anonymous ? "Anonyme" : "Utilisateur connecté"
+      });
 
       setReceipt({
         contribution: mockContribution,
         transaction: mockTransaction,
         cagnotteTitle: cagnotte.title,
-        userName: mockContribution.anonymous ? "Anonyme" : "Utilisateur",
+        userName: mockContribution.anonymous ? "Anonyme" : "Utilisateur connecté",
       }
     );
 
