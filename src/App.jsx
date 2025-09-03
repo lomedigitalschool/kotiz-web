@@ -1,9 +1,9 @@
 import React from "react";
 import LandingPage from "./pages/LandingPage";
 import Register from "./pages/Register";
-import {Login} from "./pages/Login";
-import CreerCagnotte from "./pages/createCagnotte"; 
-import ProfilPage  from "./pages/profilPage";
+import { Login } from "./pages/Login";
+import CreerCagnotte from "./pages/createCagnotte";
+import ProfilPage from "./pages/profilPage";
 import ExplorePage from "./pages/explorePage";
 import CagnotteDetails from "./pages/CagnotteDetails";
 import ContributorsPage from "./pages/ContributorsPage";
@@ -13,6 +13,8 @@ import Dashboard from "./pages/Dashboard";
 import EditCagnotte from "./pages/EditCagnotte";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import PaymentResult from "./pages/PaymentResult";
+import NotificationsPage from "./pages/Notifications";
 import KycForm from "./pages/KycForm";
 
 
@@ -48,13 +50,16 @@ export default function App() {
       <Route path="/profil" element={<ProfilPage />} />
       <Route path="/explorePage" element={<ExplorePage />} />
       <Route path="/cagnottes/:id" element={<CagnotteDetails />} />
-      <Route path="/contribute/:id" element={<ContributePage />} /> 
+      <Route path="/contribute/:id" element={<ContributePage />} />
       <Route path="/contributors/:id" element={<ContributorsPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/edit-cagnotte/:id" element={<EditCagnotte />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/kyc" element={<KycForm />} />
+      <Route path="/payment-result" element={<PaymentResult />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
+
 
     </Routes>
   );
