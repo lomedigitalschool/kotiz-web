@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { sendNotification } from "../services/notificationService";
+
 
 // Fonction  pour charger depuis localStorage
 const loadFromStorage = (key, fallback) => {
@@ -8,7 +10,7 @@ const loadFromStorage = (key, fallback) => {
   } catch (err) {
     return fallback;
   }
-  
+
 };
 
 export const useCagnotteStore = create((set, get) => ({
@@ -32,6 +34,19 @@ export const useCagnotteStore = create((set, get) => ({
   // récupération toutes cagnottes
   fetchAllCagnottes: async () => {
     set({ loading: true, error: null });
+
+    // les donnees mocks
+    const mockCagnottes = [
+      { id: 1, title: "Cagnotte A", currentAmount: 100000, goalAmount: 500000, creatorId: 1 },
+      { id: 2, title: "Cagnotte B", currentAmount: 50000, goalAmount: 300000 },
+     
+
+    ];
+
+    set({ cagnottes: mockCagnottes, loading: false });
+    localStorage.setItem("cagnottes", JSON.stringify(mockCagnottes));
+
+    /*
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -69,10 +84,10 @@ export const useCagnotteStore = create((set, get) => ({
       const stored = loadFromStorage("cagnottes", []);
       set({ cagnottes: stored, loading: false, error: error.message });
     }
+    */
   },
 
   // récupération cagnotte par id
-
   fetchCagnotte: (id) => {
     const allCagnottes = get().cagnottes;
     const selected = allCagnottes.find(c => c.id === id) || null;
@@ -80,8 +95,7 @@ export const useCagnotteStore = create((set, get) => ({
     const savedContributions = loadFromStorage("contributions", []);
     const filteredContributions = savedContributions.filter(c => c.cagnotteId === id);
 
-    set({ cagnotte: selected, contributions: filteredContributions } );
-
+    set({ cagnotte: selected, contributions: filteredContributions });
   },
 
   // ajout cagnotte
@@ -90,15 +104,20 @@ export const useCagnotteStore = create((set, get) => ({
       // S'assurer que les propriétés sont correctement définies
       const processedCagnotte = {
         ...newCagnotte,
+        id: state.cagnottes.length + 1, // mock ID auto-incrément
+
         currentAmount: newCagnotte.currentAmount || 0,
         goalAmount: newCagnotte.goalAmount || 0,
         collectedAmount: newCagnotte.currentAmount || 0, // Pour la compatibilité
         status: newCagnotte.status || 'active', // Les nouvelles cagnottes sont actives
-        type: newCagnotte.type || 'public'
+        type: newCagnotte.type || 'public',
+        creatorId: newCagnotte.creatorId || 1, // mock par défaut
       };
 
       const updatedCagnottes = [...state.cagnottes, processedCagnotte];
       localStorage.setItem("cagnottes", JSON.stringify(updatedCagnottes));
+
+
 
       console.log('Nouvelle cagnotte ajoutée:', processedCagnotte);
 
@@ -147,10 +166,10 @@ export const useCagnotteStore = create((set, get) => ({
 
       const currentCagnotte = state.cagnotte?.id === id ? null : state.cagnotte;
 
-      return { 
-        cagnottes: updatedCagnottes, 
-        contributions: updatedContributions, 
-        cagnotte: currentCagnotte 
+      return {
+        cagnottes: updatedCagnottes,
+        contributions: updatedContributions,
+        cagnotte: currentCagnotte
       };
     });
   },
@@ -158,6 +177,16 @@ export const useCagnotteStore = create((set, get) => ({
   // récup contributions de l'user
   fetchUserContributions: async () => {
     set({ loading: true, error: null });
+
+    // === MOCK ===
+    const mockContributions = [
+      { id: 1, cagnotteId: 1, userId: 1, amount: 50, user: "Sylvie" },
+      { id: 2, cagnotteId: 2, userId: 1, amount: 30, user: "Sylvie" },
+    ];
+    set({ contributions: mockContributions, loading: false });
+    localStorage.setItem("contributions", JSON.stringify(mockContributions));
+
+    /*
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -165,11 +194,8 @@ export const useCagnotteStore = create((set, get) => ({
         return;
       }
 
-      // Pour l'instant, on utilise les données locales car l'endpoint contributions n'existe pas encore
-      // TODO: Remplacer par un appel API réel quand l'endpoint sera disponible
       const allContributions = loadFromStorage("contributions", []);
       const userContributions = allContributions.filter(c => c.userId);
-
       set({ contributions: userContributions, loading: false });
       localStorage.setItem("contributions", JSON.stringify(userContributions));
     } catch (error) {
@@ -177,6 +203,7 @@ export const useCagnotteStore = create((set, get) => ({
       const stored = loadFromStorage("contributions", []);
       set({ contributions: stored, loading: false, error: error.message });
     }
+    */
   },
 
   // ajout contribution
@@ -202,21 +229,44 @@ export const useCagnotteStore = create((set, get) => ({
         c.id === updatedCagnotte.id ? updatedCagnotte : c
       );
 
+      // === MOCK Notification ===
+      sendNotification({
+        userId: cagnotte.creatorId || 1, // mock ID si absent
+        type: "newContribution",
+        data: {
+          amount: contribution.amount,
+          cagnotteTitle: cagnotte.title,
+          user: contribution.user || "Anonyme",
+          message: contribution.message || "",
+        }
+      });
+
+      // === AJOUT : notification contributeur (résultat paiement) ===
+      sendNotification({
+        userId: contribution.userId || 0, // invité = 0
+        type: "paymentResult",
+        data: {
+          status: "success", // ici mock, à remplacer par vrai statut
+          amount: contribution.amount,
+          cagnotteTitle: cagnotte.title,
+          receiptLink: `/recu/${Date.now()}`,
+          retryLink: `/payer/${cagnotte.id}`
+        },
+        channels: ["console", "email", "sms"]
+      });
+
       localStorage.setItem("contributions", JSON.stringify(updatedContributions));
       localStorage.setItem("cagnotte", JSON.stringify(updatedCagnotte));
       localStorage.setItem("cagnottes", JSON.stringify(updatedCagnottes));
 
-      return { 
-        contributions: updatedContributions, 
-        cagnotte: updatedCagnotte, 
-        cagnottes: updatedCagnottes 
+      return {
+        contributions: updatedContributions,
+        cagnotte: updatedCagnotte,
+        cagnottes: updatedCagnottes
       };
     });
   },
 
-}
-)
-
-);
+}));
 
 

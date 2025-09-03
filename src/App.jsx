@@ -11,6 +11,9 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ContributePage from "./pages/ContributePage";
 import Dashboard from "./pages/Dashboard";
 import EditCagnotte from "./pages/EditCagnotte";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import KycForm from "./pages/KycForm";
 
 
 
@@ -45,10 +48,13 @@ export default function App() {
       <Route path="/profil" element={<ProfilPage />} />
       <Route path="/explorePage" element={<ExplorePage />} />
       <Route path="/cagnottes/:id" element={<CagnotteDetails />} />
-      <Route path="/contribute/:id" element={<ContributePage />} /> {/* <-- AJOUT */}
+      <Route path="/contribute/:id" element={<ContributePage />} /> 
       <Route path="/contributors/:id" element={<ContributorsPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/edit-cagnotte/:id" element={<EditCagnotte />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/kyc" element={<KycForm />} />
 
     </Routes>
   );

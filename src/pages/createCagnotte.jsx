@@ -32,10 +32,10 @@ const CreerCagnotte = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setForm({ ...form, imageFile: file }); 
+      setForm({ ...form, imageFile: file });
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreview(reader.result); 
+        setPreview(reader.result);
       };
       reader.readAsDataURL(file);
     }
@@ -84,34 +84,69 @@ const CreerCagnotte = () => {
 
       console.log('Données envoyées:', Object.fromEntries(formData));
 
-      // Envoi à l'API
-      const response = await api.post('/v1/pulls', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.data) {
-        // Mettre à jour le store local
-        useCagnotteStore.getState().addCagnotte(response.data);
-        
-        alert("🎉 Cagnotte créée avec succès !");
-
-        // Reset formulaire
-        setForm({
-          title: "",
-          description: "",
-          goalAmount: "",
-          currency: "XOF",
-          deadline: "",
-          type: "public",
-          participantLimit: "",
-          imageFile: null,
+      // ====== API ORIGINALE COMMENTÉE ======
+      /*
+  
+        // Envoi à l'API
+        const response = await api.post('/v1/pulls', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
         });
-        setPreview(null);
+  
+        if (response.data) {
+          // Mettre à jour le store local
+          useCagnotteStore.getState().addCagnotte(response.data);
+          
+          alert("🎉 Cagnotte créée avec succès !");
+  
+          // Reset formulaire
+          setForm({
+            title: "",
+            description: "",
+            goalAmount: "",
+            currency: "XOF",
+            deadline: "",
+            type: "public",
+            participantLimit: "",
+            imageFile: null,
+          });
+          setPreview(null);
+  
+          navigate("/dashboard");
+        }
+         */
 
-        navigate("/dashboard");
-      }
+      // ====== MOCK ======
+      const mockCagnotte = {
+        id: uuidv4(),
+        ...processedData,
+        image: preview,
+        createdAt: new Date().toISOString(),
+        currentAmount: 0,
+        participants: [],
+      };
+
+      useCagnotteStore.getState().addCagnotte(mockCagnotte);
+
+      alert("🎉 Cagnotte MOCK créée avec succès !");
+
+      // Reset formulaire
+      setForm({
+        title: "",
+        description: "",
+        goalAmount: "",
+        currency: "XOF",
+        deadline: "",
+        type: "public",
+        participantLimit: "",
+        imageFile: null,
+      });
+      setPreview(null);
+
+      navigate("/dashboard");
+
+
     } catch (error) {
       console.error("Erreur détaillée:", error);
       console.error("Données de la réponse:", error.response?.data);
@@ -158,7 +193,7 @@ const CreerCagnotte = () => {
         </div>
 
         {/* Formulaire droite */}
-        
+
         <div className="flex-1 p-10">
           <h2 className="text-3xl font-bold text-[#4ca260] mb-4">Créer une cagnotte 💰</h2>
           <p className="text-gray-600 mb-6">

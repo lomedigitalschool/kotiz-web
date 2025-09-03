@@ -8,16 +8,16 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 const ITEMS_PER_PAGE = 3;
 
 const CagnotteDetails = () => {
-   const { id } = useParams();
-   const navigate = useNavigate();
-   const location = useLocation();
-   const [cagnotte, setCagnotte] = useState(null);
-   const [contributions, setContributions] = useState([]);
-   const [loading, setLoading] = useState(true);
-   const [error, setError] = useState(null);
-   const { currentUser } = useCagnotteStore();
-   const [page, setPage] = useState(1);
-   const [refreshKey, setRefreshKey] = useState(0);
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [cagnotte, setCagnotte] = useState(null);
+  const [contributions, setContributions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { currentUser } = useCagnotteStore();
+  const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const fetchCagnotteDetails = async () => {
@@ -25,11 +25,36 @@ const CagnotteDetails = () => {
         setLoading(true);
         console.log('Chargement de la cagnotte:', id, 'Refresh key:', refreshKey);
 
+        // --- API BACKEND (commentée pour avancer avec mock) ---
+        /*
         const response = await api.get(`/v1/pulls/${id}`);
         console.log('Données reçues:', response.data);
-
         setCagnotte(response.data);
         setContributions(response.data.contributions || []);
+  
+        */
+
+        // --- DONNÉES MOCK POUR AVANCER ---
+        const allCagnottes = useCagnotteStore.getState().cagnottes;
+        //const selectedCagnotte = allCagnottes.find(c => c.id === Number(id)) || null;
+        // fallback si aucune cagnotte trouvée
+        const selectedCagnotte = allCagnottes.find(c => c.id === Number(id)) || {
+          id: Number(id),
+          title: "Cagnotte Mock",
+          status: "active",
+          type: "public",
+          currentAmount: 0,
+          goalAmount: 1000,
+          createdAt: new Date().toISOString(),
+          currency: "€",
+          contributions: [],
+          creator: { name: "Utilisateur Mock" }
+        };
+        const allContributions = useCagnotteStore.getState().contributions;
+        const filteredContribs = allContributions.filter(c => c.cagnotteId === Number(id));
+
+        setCagnotte(selectedCagnotte);
+        setContributions(filteredContribs);
 
         setError(null);
       } catch (err) {
@@ -42,6 +67,7 @@ const CagnotteDetails = () => {
 
     fetchCagnotteDetails();
   }, [id, refreshKey]);
+
 
   // Détecter si on vient d'une modification
   useEffect(() => {
@@ -117,19 +143,29 @@ const CagnotteDetails = () => {
                     cagnotte.status === "active"
                       ? colors.primary
                       : cagnotte.status === "closed"
-                      ? "#F87171"
-                      : "#FBBF24",
+                        ? "#F87171"
+                        : "#FBBF24",
                 }}
               >
-                {cagnotte.status[0].toUpperCase() + cagnotte.status.slice(1)}
+                {/* --- ORIGINAL AVEC API ---
+            {cagnotte.status?.[0].toUpperCase() + cagnotte.status.slice(1)}
+           */}
+                {/* --- VERSION MOCK SÉCURISÉE --- */}
+                {cagnotte.status
+                  ? cagnotte.status[0].toUpperCase() + cagnotte.status.slice(1)
+                  : "Inconnu"}
+
+                {" | "}
+
+                {/* --- ORIGINAL AVEC API ---
+                {cagnotte.type?.[0].toUpperCase() + cagnotte.type.slice(1)}
+               */}
+                {/* --- VERSION MOCK SÉCURISÉE --- */}
+                {cagnotte.type
+                  ? cagnotte.type[0].toUpperCase() + cagnotte.type.slice(1)
+                  : "Inconnu"}
               </span>
 
-              <span
-                className="px-3 py-1 rounded-full text-white text-sm font-semibold shadow"
-                style={{ backgroundColor: cagnotte.type === "public" ? "#3B5BAB" : "#F59E0B" }}
-              >
-                {cagnotte.type[0].toUpperCase() + cagnotte.type.slice(1)}
-              </span>
             </div>
 
             <div className="flex gap-[10px]">

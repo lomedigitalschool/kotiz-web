@@ -105,6 +105,5 @@ const ContributorsPage = () => {
 
 export default ContributorsPage;
 
-;
 
 

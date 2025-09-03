@@ -4,33 +4,56 @@ import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 
 const ContributePage = () => {
-   const { id } = useParams();
-   const { addContribution } = useCagnotteStore();
-   const [cagnotte, setCagnotte] = useState(null);
-   const [loading, setLoading] = useState(true);
-   const [error, setError] = useState(null);
+  const { id } = useParams();
+  const { addContribution } = useCagnotteStore();
+  const [cagnotte, setCagnotte] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-   const [amount, setAmount] = useState("");
-   const [anonymous, setAnonymous] = useState(false);
-   const [message, setMessage] = useState("");
-   const [receipt, setReceipt] = useState(null);
+  const [amount, setAmount] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
+  const [message, setMessage] = useState("");
+  const [receipt, setReceipt] = useState(null);
 
-   // États locaux pour la soumission
-   const [submitting, setSubmitting] = useState(false);
-   const [submitError, setSubmitError] = useState("");
+  // États locaux pour la soumission
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-   // Erreurs inline
-   const [amountError, setAmountError] = useState("");
-   const [messageError, setMessageError] = useState("");
+  // Erreurs inline
+  const [amountError, setAmountError] = useState("");
+  const [messageError, setMessageError] = useState("");
 
   // Chargement cagnotte au montage
   useEffect(() => {
     const fetchCagnotteData = async () => {
       try {
         setLoading(true);
+
+        // --- API BACKEND (original, commenté pour avancer avec mock) ---
+        /*
         const response = await api.get(`/v1/pulls/${id}`);
         setCagnotte(response.data);
         setError(null);
+        */
+
+        // --- DONNÉES MOCK POUR me permettre de faire less test sans le back ---
+        const allCagnottes = useCagnotteStore.getState().cagnottes;
+        const selectedCagnotte = allCagnottes.find(c => c.id === Number(id)) || {
+          id: Number(id),
+          title: "Cagnotte Mock",
+          status: "active",
+          type: "public",
+          currentAmount: 0,
+          goalAmount: 1000,
+          createdAt: new Date().toISOString(),
+          currency: "€",
+          contributions: [],
+          creator: { name: "Utilisateur Mock" }
+        };
+
+        setCagnotte(selectedCagnotte);
+        setError(null);
+
       } catch (err) {
         setError(err.response?.data?.message || "Erreur lors du chargement de la cagnotte");
       } finally {
@@ -40,6 +63,7 @@ const ContributePage = () => {
 
     fetchCagnotteData();
   }, [id]);
+
 
   if (loading) return <p style={{ marginTop: "5rem", textAlign: "center", color: "#6b7280" }}>Chargement...</p>;
   if (error) return <p style={{ marginTop: "5rem", textAlign: "center", color: "#dc2626" }}>{error}</p>;
@@ -104,7 +128,7 @@ const ContributePage = () => {
         cagnotteTitle: cagnotte.title,
         userName: mockContribution.anonymous ? "Anonyme" : "Utilisateur connecté",
       }
-    );
+      );
 
       // Reset
       setAmount("");
@@ -114,7 +138,7 @@ const ContributePage = () => {
       setSubmitError("Une erreur est survenue lors de la contribution.");
     } finally {
       setSubmitting(false);
-       }
+    }
 
   };
 
@@ -190,9 +214,8 @@ const ContributePage = () => {
         <button
           type="submit"
           disabled={submitting}
-          className={`w-full py-3 text-white font-semibold rounded-md transition ${
-            submitting ? "bg-gray-400" : "bg-primary hover:opacity-90"
-          }`}
+          className={`w-full py-3 text-white font-semibold rounded-md transition ${submitting ? "bg-gray-400" : "bg-primary hover:opacity-90"
+            }`}
           style={{ marginTop: "1rem" }}
         >
           {submitting ? "Traitement..." : "Contribuer"}
@@ -206,7 +229,7 @@ const ContributePage = () => {
       {receipt && (
         <div
           className="mt-6 rounded shadow"
-          style={{ backgroundColor: "#f0fdf4", borderLeft: "4px solid #22c55e", padding: "1.5rem" }}
+          style={{ backgroundColor: "#f0fdf4", borderLeft: "4px solid #4CA260", padding: "1.5rem" }}
         >
           <h2 className="text-2xl font-bold mb-2">Reçu de paiement</h2>
           <p><strong>Cagnotte :</strong> {receipt.cagnotteTitle}</p>

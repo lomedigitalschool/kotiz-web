@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
+import { FaArrowLeft, FaHome, FaUser, FaCog } from "react-icons/fa";
+
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -57,16 +59,26 @@ const Dashboard = () => {
   return (
     <div className="p-6 mx-auto font-roboto" style={{ maxWidth: "1400px" }}>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold">Dashboard</h1>
-        <button
-          onClick={() => navigate("/create-cagnotte")}
-          className="px-6 py-2 rounded-md text-white hover:opacity-90 transition"
-          style={{ backgroundColor: colors.primary }}
-        >
-          Créer une cagnotte
-        </button>
-      </div>
+       <header className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/landing")}>
+          <FaArrowLeft className="text-xl hover:text-green-600" />
+          <img
+            src="/src/assets/logos/logo_horizontale.png"
+            alt="Logo horizontal"
+            className="w-40"
+          />
+        </div>
+
+        <div className="flex gap-3 md:gap-4 items-center">
+          <button
+            onClick={() => navigate("/create-cagnotte")}
+            className="px-6 py-2 rounded-md text-white hover:opacity-90 transition"
+            style={{ backgroundColor: colors.primary }}
+          >
+            Créer une cagnotte
+          </button>
+        </div>
+      </header>
 
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
