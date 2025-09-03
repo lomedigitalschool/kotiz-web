@@ -7,7 +7,7 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 // Composant principal pour la page de profil utilisateur
 const ProfilePage = () => {
    const navigate = useNavigate(); // Hook pour naviguer entre les pages
-   const { cagnottes, contributions } = useCagnotteStore();
+   const { cagnottes, contributions, reset } = useCagnotteStore();
 
    // Gestion des états locaux pour les onglets actifs et les données utilisateur
    const [activeTab, setActiveTab] = useState("soutenues"); // Onglet actif (projets soutenus ou créés)
@@ -219,9 +219,7 @@ const ProfilePage = () => {
                 className="w-full flex items-center space-x-2 p-3 rounded-lg text-red-600 hover:bg-red-50 transition mt-4"
                 onClick={() => {
                   if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('cagnottes');
-                    localStorage.removeItem('contributions');
+                    reset(); // Nettoie complètement le store et localStorage
                     navigate('/login');
                   }
                 }}
@@ -378,7 +376,7 @@ const ProfilePage = () => {
 
           {/* Section des projets */}
           <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-6">Mes projets</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-6">Mes cagnottes</h2>
             
             {/* Onglets pour basculer entre projets soutenus et créés */}
             <div className="flex space-x-6 border-b border-gray-200 mb-6">
@@ -400,7 +398,7 @@ const ProfilePage = () => {
                 }`}
                 onClick={() => setActiveTab("creees")}
               >
-                Créées
+                Crées
               </button>
             </div>
 
@@ -410,12 +408,12 @@ const ProfilePage = () => {
                 <div className="space-y-4">
                   {projetsSoutenus.length === 0 ? (
                     <div className="text-center py-8">
-                      <p className="text-gray-600">Aucun projet soutenu pour l'instant.</p>
+                      <p className="text-gray-600">Aucune cagnotte soutenue pour l'instant.</p>
                       <button
                         className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
                         onClick={() => navigate("/explorePage")}
                       >
-                        Explorer les projets
+                        Explorer les cagnottes
                       </button>
                     </div>
                   ) : (
@@ -448,12 +446,12 @@ const ProfilePage = () => {
                 <div className="space-y-4">
                   {projetsCrees.length === 0 ? (
                     <div className="text-center py-8">
-                      <p className="text-gray-600">Aucun projet créé pour l'instant.</p>
+                      <p className="text-gray-600">Aucune cagnotte crée pour l'instant.</p>
                       <button
                         className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
                         onClick={() => navigate("/create-cagnotte")}
                       >
-                        Créer un projet
+                        Créer une cagnotte
                       </button>
                     </div>
                   ) : (

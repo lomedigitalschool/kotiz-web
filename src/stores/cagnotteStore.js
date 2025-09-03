@@ -39,7 +39,7 @@ export const useCagnotteStore = create((set, get) => ({
     const mockCagnottes = [
       { id: 1, title: "Cagnotte A", currentAmount: 100000, goalAmount: 500000, creatorId: 1 },
       { id: 2, title: "Cagnotte B", currentAmount: 50000, goalAmount: 300000 },
-     
+
 
     ];
 
@@ -71,9 +71,9 @@ export const useCagnotteStore = create((set, get) => ({
       // S'assurer que chaque cagnotte a les bonnes propriétés
       const processedData = Array.isArray(data) ? data.map(c => ({
         ...c,
-        currentAmount: c.currentAmount || 0,
-        goalAmount: c.goalAmount || 0,
-        collectedAmount: c.currentAmount || 0 // Pour la compatibilité
+        currentAmount: parseFloat(c.currentAmount) || 0,
+        goalAmount: parseFloat(c.goalAmount) || 0,
+        collectedAmount: parseFloat(c.currentAmount) || 0 // Pour la compatibilité
       })) : [];
 
       set({ cagnottes: processedData, loading: false });
@@ -104,14 +104,14 @@ export const useCagnotteStore = create((set, get) => ({
       // S'assurer que les propriétés sont correctement définies
       const processedCagnotte = {
         ...newCagnotte,
-        id: state.cagnottes.length + 1, // mock ID auto-incrément
-
-        currentAmount: newCagnotte.currentAmount || 0,
-        goalAmount: newCagnotte.goalAmount || 0,
-        collectedAmount: newCagnotte.currentAmount || 0, // Pour la compatibilité
+        // Utiliser l'ID de l'API si disponible, sinon générer un mock ID
+        id: newCagnotte.id || state.cagnottes.length + 1,
+        currentAmount: parseFloat(newCagnotte.currentAmount) || 0,
+        goalAmount: parseFloat(newCagnotte.goalAmount) || 0,
+        collectedAmount: parseFloat(newCagnotte.currentAmount) || 0, // Pour la compatibilité
         status: newCagnotte.status || 'active', // Les nouvelles cagnottes sont actives
         type: newCagnotte.type || 'public',
-        creatorId: newCagnotte.creatorId || 1, // mock par défaut
+        creatorId: newCagnotte.userId || newCagnotte.creatorId || 1, // Support API et mock
       };
 
       const updatedCagnottes = [...state.cagnottes, processedCagnotte];
@@ -221,7 +221,7 @@ export const useCagnotteStore = create((set, get) => ({
 
       const updatedCagnotte = {
         ...state.cagnotte,
-        currentAmount: (state.cagnotte?.currentAmount || 0) + contribution.amount,
+        currentAmount: (parseFloat(state.cagnotte?.currentAmount) || 0) + parseFloat(contribution.amount),
         contributors: [...(state.cagnotte?.contributors || []), contribution.user || "Anonyme"],
       };
 
@@ -267,6 +267,20 @@ export const useCagnotteStore = create((set, get) => ({
     });
   },
 
+  // fonction de reset pour la déconnexion
+  reset: () => {
+    // Supprimer TOUTES les données du localStorage
+    localStorage.clear();
+
+    // Reset l'état du store à ses valeurs initiales
+    set({
+      cagnotte: null,
+      contributions: [],
+      cagnottes: [],
+      loading: false,
+      error: null,
+      userContributions: []
+    });
+  },
+
 }));
-
-

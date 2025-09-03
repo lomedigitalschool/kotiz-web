@@ -4,9 +4,13 @@ import illustration from "../assets/illustrations/2_Interaction Fintech Sécuris
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import api from "../services/api";
+import PhoneInput from "../components/PhoneInput";
+import PasswordInput from "../components/PasswordInput";
+import { useCagnotteStore } from "../stores/cagnotteStore";
 
 export const Register = () => {
   const navigate = useNavigate();
+  const { fetchAllCagnottes } = useCagnotteStore();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     nom: "",
@@ -18,12 +22,39 @@ export const Register = () => {
     notificationType: "email",
     defaultCurrency: "XOF",
   });
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    // Clear error for the field being changed
+    setErrors({ ...errors, [e.target.name]: "" });
   };
 
-  const nextStep = () => setStep(step + 1);
+  const validateStep = () => {
+    const newErrors = {};
+    if (step === 1) {
+      if (!form.nom.trim()) newErrors.nom = "Le nom est obligatoire.";
+      if (!form.prenom.trim()) newErrors.prenom = "Le prénom est obligatoire.";
+      if (!form.email.trim() && !form.phone.trim()) {
+        newErrors.email = "Au moins un email ou numéro de téléphone est requis.";
+        newErrors.phone = "Au moins un email ou numéro de téléphone est requis.";
+      }
+    } else if (step === 2) {
+      if (!form.password) newErrors.password = "Le mot de passe est obligatoire.";
+      if (!form.confirmPassword) newErrors.confirmPassword = "La confirmation du mot de passe est obligatoire.";
+      if (form.password && form.confirmPassword && form.password !== form.confirmPassword) {
+        newErrors.confirmPassword = "Les mots de passe ne correspondent pas.";
+      }
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const nextStep = () => {
+    if (validateStep()) {
+      setStep(step + 1);
+    }
+  };
   const prevStep = () => setStep(step - 1);
 
   const handleSubmit = async (e) => {
@@ -65,6 +96,10 @@ export const Register = () => {
       if (response.data.token) {
         // Stocker le token
         localStorage.setItem('token', response.data.token);
+
+        // ✅ Forcer le rechargement des données du nouvel utilisateur
+        await fetchAllCagnottes();
+
         // Afficher message de succès
         alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
         // Rediriger vers le tableau de bord
@@ -118,18 +153,27 @@ export const Register = () => {
                 <div>
                   <label className="block font-medium text-gray-700">Nom <span className="text-red-500">*</span></label>
                   <input type="text" name="nom" required value={form.nom} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none" placeholder="Votre nom" />
+                  {errors.nom && <p className="text-red-500 text-sm mt-1">{errors.nom}</p>}
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700">Prénom <span className="text-red-500">*</span></label>
                   <input type="text" name="prenom" required value={form.prenom} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none" placeholder="Votre prénom" />
+                  {errors.prenom && <p className="text-red-500 text-sm mt-1">{errors.prenom}</p>}
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700">Email</label>
                   <input type="email" name="email" value={form.email} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none" placeholder="Votre email" />
+                  {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700">Numéro de téléphone</label>
-                  <input type="tel" name="phone" value={form.phone} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none" placeholder="Votre numéro de téléphone" />
+                  <PhoneInput
+                    value={form.phone}
+                    onChange={handleChange}
+                    placeholder="Votre numéro de téléphone"
+                    name="phone"
+                  />
+                  {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                 </div>
                 <button type="button" onClick={nextStep} className="bg-[#4ca260] text-white font-bold py-3 rounded-lg hover:bg-[#082e11] transition">Suivant</button>
               </>
@@ -140,11 +184,26 @@ export const Register = () => {
                 <h3 className="text-xl font-semibold mb-2">Étape 2: Sécurité</h3>
                 <div>
                   <label className="block font-medium text-gray-700">Mot de passe <span className="text-red-500">*</span></label>
-                  <input type="password" name="password" required value={form.password} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none" placeholder="Votre mot de passe" />
+                  <PasswordInput
+                    value={form.password}
+                    onChange={handleChange}
+                    placeholder="Votre mot de passe"
+                    name="password"
+                    required
+                    showStrength
+                  />
+                  {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700">Confirmer le mot de passe <span className="text-red-500">*</span></label>
-                  <input type="password" name="confirmPassword" required value={form.confirmPassword} onChange={handleChange} className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none" placeholder="Confirmez votre mot de passe" />
+                  <PasswordInput
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="Confirmez votre mot de passe"
+                    name="confirmPassword"
+                    required
+                  />
+                  {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
                 </div>
                 <div className="flex justify-between">
                   <button type="button" onClick={prevStep} className="bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-400 transition">Précédent</button>

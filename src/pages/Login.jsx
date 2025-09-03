@@ -4,22 +4,44 @@ import { useNavigate } from "react-router-dom";
 import vector0 from "../assets/logo.png";
 import { FaArrowLeft } from "react-icons/fa";
 import api from "../services/api";
+import PhoneInput from "../components/PhoneInput";
+import PasswordInput from "../components/PasswordInput";
+import { useCagnotteStore } from "../stores/cagnotteStore";
 
 export const Login = () => {
   const navigate = useNavigate();
+  const { fetchAllCagnottes } = useCagnotteStore();
   const [form, setForm] = useState({
     identifier: "",
     password: "",
     remember: false,
   });
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm({ ...form, [name]: type === "checkbox" ? checked : value });
+    // Clear error for the field being changed
+    setErrors({ ...errors, [name]: "" });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validation
+    const newErrors = {};
+    if (!form.identifier.trim()) {
+      newErrors.identifier = "Email ou numéro de téléphone est requis.";
+    }
+    if (!form.password) {
+      newErrors.password = "Le mot de passe est requis.";
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+
     try {
       const response = await api.post('/v1/auth/login', {
         identifier: form.identifier, // Email ou téléphone
@@ -32,6 +54,10 @@ export const Login = () => {
         if (form.remember) {
           localStorage.setItem('rememberMe', 'true');
         }
+
+        // ✅ Forcer le rechargement des données du nouvel utilisateur
+        await fetchAllCagnottes();
+
         // Rediriger vers le tableau de bord
         navigate('/dashboard');
       }
@@ -64,19 +90,19 @@ export const Login = () => {
               className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none"
               placeholder="Entrez votre email ou numéro de téléphone"
             />
+            {errors.identifier && <p className="text-red-500 text-sm mt-1">{errors.identifier}</p>}
           </div>
 
           {/* Password */}
           <div>
             <label className="block font-medium text-gray-700">Mot de passe</label>
-            <input
-              type="password"
-              name="password"
+            <PasswordInput
               value={form.password}
               onChange={handleChange}
-              className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none"
               placeholder="Entrez votre mot de passe"
+              name="password"
             />
+            {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
           </div>
 
           {/* Remember me */}

@@ -12,23 +12,25 @@ const Dashboard = () => {
   const [userStats, setUserStats] =useState({});
 
   useEffect(() => {
+    // ✅ Re-fetch toujours quand le composant se monte ou que le token change
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchAllCagnottes();
+      fetchUserContributions();
+    }
 
-    fetchAllCagnottes();
-
-    fetchUserContributions();
-
-    const local = JSON.parse(  localStorage.getItem  ("localCagnottes"  ) || "[]");
+    const local = JSON.parse(localStorage.getItem("localCagnottes") || "[]");
     if (local.length) {
       const current = useCagnotteStore.getState().cagnottes;
       const merged = [...current, ...local.filter(l => !current.find(c => c.id === l.id))];
-      useCagnotteStore.getState().setCagnottes(merged  );
+      useCagnotteStore.getState().setCagnottes(merged);
     }
   }, [fetchAllCagnottes, fetchUserContributions]);
 
   // Calculer les statistiques utilisateur
   useEffect(() => {
     if (cagnottes.length > 0) {
-      const totalCollected = cagnottes.reduce((sum, c) => sum + (c.currentAmount || 0), 0);
+      const totalCollected = cagnottes.reduce((sum, c) => sum + (parseFloat(c.currentAmount) || 0), 0);
       const activeCount = cagnottes.filter(c => c.status === 'active' || c.status === 'pending' || !c.status).length;
       const totalContributors = new Set(contributions.map(c => c.userId)).size;
 
@@ -146,7 +148,7 @@ const Dashboard = () => {
       <h2 className="text-2xl font-bold mb-4">Mes Cagnottes</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {cagnottes.map(c => {
-          const collectedAmount = c.currentAmount || c.collectedAmount || 0;
+          const collectedAmount = parseFloat(c.currentAmount || c.collectedAmount || 0);
           const goalAmount = c.goalAmount || 0;
           const progress = goalAmount > 0 ? Math.min((collectedAmount / goalAmount) * 100, 100) : 0;
 
@@ -234,7 +236,7 @@ const Dashboard = () => {
                     title={contrib.anonymous ? "Anonyme" : contrib.user}
                   >
                     <span className="truncate">{contrib.anonymous ? "Anonyme" : contrib.user}</span>
-                    <span className="font-semibold">{(contrib.amount || 0).toLocaleString()} {contrib.currency}</span>
+                    <span className="font-semibold">{(parseFloat(contrib.amount) || 0).toLocaleString()} {contrib.currency}</span>
                   </div>
                 ))}
               </div>
@@ -274,7 +276,7 @@ const Dashboard = () => {
                   <td className="px-4 py-3 text-gray-800 font-semibold truncate max-w-xs">{c.cagnotteTitle}</td>
                   <td className="px-6 py-3 text-gray-500">{new Date(c.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-center text-gray-800 font-bold w-28">
-                    {(c.amount || 0).toLocaleString()} {c.currency}
+                    {(parseFloat(c.amount) || 0).toLocaleString()} {c.currency}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span

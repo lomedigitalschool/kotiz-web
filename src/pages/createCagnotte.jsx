@@ -20,18 +20,61 @@ const CreerCagnotte = () => {
     image: null,
   });
   const [preview, setPreview] = useState(null);
+  const [errors, setErrors] = useState({});
 
-  const nextStep = () => setStep((prev) => Math.min(prev + 1, 3));
+  const validateStep = () => {
+    const newErrors = {};
+    if (step === 1) {
+      if (!form.title.trim()) newErrors.title = "Le titre de la cagnotte est obligatoire.";
+      if (!form.description.trim()) newErrors.description = "La description est obligatoire.";
+    } else if (step === 2) {
+      if (!form.goalAmount || isNaN(form.goalAmount) || parseFloat(form.goalAmount) <= 0) {
+        newErrors.goalAmount = "Un montant cible valide est obligatoire.";
+      }
+    } else if (step === 3) {
+      if (!form.type) newErrors.type = "Le type de cagnotte est obligatoire.";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const nextStep = () => {
+    if (validateStep()) {
+      setStep((prev) => Math.min(prev + 1, 3));
+    }
+  };
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    // Clear error for the field being changed
+    setErrors({ ...errors, [e.target.name]: "" });
   };
 
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validation du type de fichier côté client
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff'];
+      const maxSize = 10 * 1024 * 1024; // 10MB
+
+      if (!allowedTypes.includes(file.type)) {
+        if (file.type === 'image/avif') {
+          alert(`Format AVIF non supporté par notre service de stockage. Utilisez JPG, PNG, GIF, WEBP, SVG, BMP ou TIFF.`);
+        } else {
+          alert(`Type de fichier non supporté: ${file.type}. Utilisez JPG, PNG, GIF, WEBP, SVG, BMP ou TIFF.`);
+        }
+        e.target.value = ''; // Reset le champ file
+        return;
+      }
+
+      if (file.size > maxSize) {
+        alert(`Fichier trop volumineux: ${(file.size / 1024 / 1024).toFixed(2)}MB. Taille maximale: 10MB.`);
+        e.target.value = ''; // Reset le champ file
+        return;
+      }
+
       setForm({ ...form, imageFile: file });
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -86,20 +129,19 @@ const CreerCagnotte = () => {
 
       // ====== API ORIGINALE COMMENTÉE ======
       /*
-  
         // Envoi à l'API
         const response = await api.post('/v1/pulls', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
-  
+
         if (response.data) {
           // Mettre à jour le store local
           useCagnotteStore.getState().addCagnotte(response.data);
-          
+
           alert("🎉 Cagnotte créée avec succès !");
-  
+
           // Reset formulaire
           setForm({
             title: "",
@@ -112,10 +154,10 @@ const CreerCagnotte = () => {
             imageFile: null,
           });
           setPreview(null);
-  
+
           navigate("/dashboard");
         }
-         */
+          */
 
       // ====== MOCK ======
       const mockCagnotte = {
@@ -157,7 +199,14 @@ const CreerCagnotte = () => {
       if (error.response?.status === 401) {
         errorMessage = "Vous devez être connecté pour créer une cagnotte. Veuillez vous reconnecter.";
       } else if (error.response?.status === 400) {
-        errorMessage = "Données invalides. Vérifiez que tous les champs requis sont remplis correctement.";
+        // Gestion spécifique des erreurs d'upload
+        if (error.response?.data?.error === 'Type de fichier non supporté') {
+          errorMessage = error.response.data.message || "Type d'image non supporté. Utilisez JPG, PNG, GIF, WEBP, SVG, BMP ou TIFF.";
+        } else if (error.response?.data?.error === 'Fichier trop volumineux') {
+          errorMessage = error.response.data.message || "L'image est trop volumineuse. Taille maximale: 10MB.";
+        } else {
+          errorMessage = "Données invalides. Vérifiez que tous les champs requis sont remplis correctement.";
+        }
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.response?.data?.message) {
@@ -225,6 +274,7 @@ const CreerCagnotte = () => {
                     className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none"
                     placeholder="Ex: Anniversaire de Marie"
                   />
+                  {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700">
@@ -239,6 +289,7 @@ const CreerCagnotte = () => {
                     className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none"
                     placeholder="Expliquez l'objectif de votre cagnotte..."
                   ></textarea>
+                  {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
                 </div>
                 <button
                   type="button"
@@ -266,6 +317,7 @@ const CreerCagnotte = () => {
                     className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none"
                     placeholder="Entrez le montant à collecter"
                   />
+                  {errors.goalAmount && <p className="text-red-500 text-sm mt-1">{errors.goalAmount}</p>}
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700">Devise</label>
@@ -326,6 +378,7 @@ const CreerCagnotte = () => {
                     <option value="public">Publique</option>
                     <option value="private">Privée</option>
                   </select>
+                  {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type}</p>}
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700">

@@ -37,10 +37,10 @@ export default function ExplorerPage() {
 
   return (
     <div className="explorer-page pt-[calc(4rem+1rem)] p-4">
-      
+
       {/* header*/}
       <header className="fixed top-0 left-0 w-full flex justify-between items-center px-6 md:px-12 py-4 bg-white shadow-md z-50">
-        
+
         {/* Logo + flèche retour vers la page d'accueil */}
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/landing")}>
           <FaArrowLeft className="text-xl hover:text-green-600" />
@@ -49,6 +49,17 @@ export default function ExplorerPage() {
             alt="Logo horizontal"
             className="w-40"
           />
+
+          <select
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="border p-2 rounded"
+          >
+            <option value="recent">Récents</option>
+            <option value="popular">Populaires</option>
+            <option value="amount-high">Montants élevés</option>
+            <option value="amount-low">Montants faibles</option>
+          </select>
         </div>
 
         {/* Navigation principale avec icônes */}
@@ -175,8 +186,3 @@ export default function ExplorerPage() {
     </div>
   );
 }
-
-
-
-
-
