@@ -12,6 +12,9 @@ const Dashboard = () => {
   const [userStats, setUserStats] =useState({});
 
   useEffect(() => {
+    // ✅ Nettoyer les données mockées restantes au premier chargement
+    useCagnotteStore.getState().cleanMockData();
+
     // ✅ Re-fetch toujours quand le composant se monte ou que le token change
     const token = localStorage.getItem('token');
     if (token) {

@@ -25,36 +25,10 @@ const CagnotteDetails = () => {
         setLoading(true);
         console.log('Chargement de la cagnotte:', id, 'Refresh key:', refreshKey);
 
-        // --- API BACKEND (commentée pour avancer avec mock) ---
-        /*
         const response = await api.get(`/v1/pulls/${id}`);
         console.log('Données reçues:', response.data);
         setCagnotte(response.data);
         setContributions(response.data.contributions || []);
-  
-        */
-
-        // --- DONNÉES MOCK POUR AVANCER ---
-        const allCagnottes = useCagnotteStore.getState().cagnottes;
-        //const selectedCagnotte = allCagnottes.find(c => c.id === Number(id)) || null;
-        // fallback si aucune cagnotte trouvée
-        const selectedCagnotte = allCagnottes.find(c => c.id === Number(id)) || {
-          id: Number(id),
-          title: "Cagnotte Mock",
-          status: "active",
-          type: "public",
-          currentAmount: 0,
-          goalAmount: 1000,
-          createdAt: new Date().toISOString(),
-          currency: "€",
-          contributions: [],
-          creator: { name: "Utilisateur Mock" }
-        };
-        const allContributions = useCagnotteStore.getState().contributions;
-        const filteredContribs = allContributions.filter(c => c.cagnotteId === Number(id));
-
-        setCagnotte(selectedCagnotte);
-        setContributions(filteredContribs);
 
         setError(null);
       } catch (err) {

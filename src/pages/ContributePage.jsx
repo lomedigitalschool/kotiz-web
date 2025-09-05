@@ -29,29 +29,8 @@ const ContributePage = () => {
       try {
         setLoading(true);
 
-        // --- API BACKEND (original, commenté pour avancer avec mock) ---
-        /*
         const response = await api.get(`/v1/pulls/${id}`);
         setCagnotte(response.data);
-        setError(null);
-        */
-
-        // --- DONNÉES MOCK POUR me permettre de faire less test sans le back ---
-        const allCagnottes = useCagnotteStore.getState().cagnottes;
-        const selectedCagnotte = allCagnottes.find(c => c.id === Number(id)) || {
-          id: Number(id),
-          title: "Cagnotte Mock",
-          status: "active",
-          type: "public",
-          currentAmount: 0,
-          goalAmount: 1000,
-          createdAt: new Date().toISOString(),
-          currency: "€",
-          contributions: [],
-          creator: { name: "Utilisateur Mock" }
-        };
-
-        setCagnotte(selectedCagnotte);
         setError(null);
 
       } catch (err) {
@@ -88,47 +67,40 @@ const ContributePage = () => {
     return isValid;
   };
 
-  // Simulation soumission API
+  // Soumission contribution (stockage local)
   const submitContribution = async (data) => {
     setSubmitting(true);
     setSubmitError("");
     try {
+      // Simuler un délai de traitement
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      const mockContribution = {
+      const newContribution = {
         ...data,
         id: Date.now(),
         paymentReference: `PAY-${Date.now()}`,
         createdAt: new Date().toISOString(),
         currency: cagnotte.currency,
-        cagnotteTitle: cagnotte.title
-      };
-
-      const mockTransaction = {
-        id: Date.now() + 1,
-        contributionId: mockContribution.id,
-        paymentMethodId: 1,
-        amount: mockContribution.amount,
-        currency: cagnotte.currency,
-        status: "completed",
-        providerReference: `PROV-${Date.now()}`,
-        providerResponse: "Mock response",
-        createdAt: new Date().toISOString(),
+        cagnotteTitle: cagnotte.title,
+        status: "completed"
       };
 
       // Ajouter la contribution au store
       addContribution({
-        ...mockContribution,
+        ...newContribution,
         user: anonymous ? "Anonyme" : "Utilisateur connecté"
       });
 
       setReceipt({
-        contribution: mockContribution,
-        transaction: mockTransaction,
+        contribution: newContribution,
+        transaction: {
+          id: Date.now() + 1,
+          status: "completed",
+          providerReference: `PROV-${Date.now()}`
+        },
         cagnotteTitle: cagnotte.title,
-        userName: mockContribution.anonymous ? "Anonyme" : "Utilisateur connecté",
-      }
-      );
+        userName: newContribution.anonymous ? "Anonyme" : "Utilisateur connecté",
+      });
 
       // Reset
       setAmount("");
@@ -139,7 +111,6 @@ const ContributePage = () => {
     } finally {
       setSubmitting(false);
     }
-
   };
 
   // Gestion submit

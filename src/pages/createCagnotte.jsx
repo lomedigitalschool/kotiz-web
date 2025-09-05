@@ -127,66 +127,34 @@ const CreerCagnotte = () => {
 
       console.log('Données envoyées:', Object.fromEntries(formData));
 
-      // ====== API ORIGINALE COMMENTÉE ======
-      /*
-        // Envoi à l'API
-        const response = await api.post('/v1/pulls', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        if (response.data) {
-          // Mettre à jour le store local
-          useCagnotteStore.getState().addCagnotte(response.data);
-
-          alert("🎉 Cagnotte créée avec succès !");
-
-          // Reset formulaire
-          setForm({
-            title: "",
-            description: "",
-            goalAmount: "",
-            currency: "XOF",
-            deadline: "",
-            type: "public",
-            participantLimit: "",
-            imageFile: null,
-          });
-          setPreview(null);
-
-          navigate("/dashboard");
-        }
-          */
-
-      // ====== MOCK ======
-      const mockCagnotte = {
-        id: uuidv4(),
-        ...processedData,
-        image: preview,
-        createdAt: new Date().toISOString(),
-        currentAmount: 0,
-        participants: [],
-      };
-
-      useCagnotteStore.getState().addCagnotte(mockCagnotte);
-
-      alert("🎉 Cagnotte MOCK créée avec succès !");
-
-      // Reset formulaire
-      setForm({
-        title: "",
-        description: "",
-        goalAmount: "",
-        currency: "XOF",
-        deadline: "",
-        type: "public",
-        participantLimit: "",
-        imageFile: null,
+      // Envoi à l'API
+      const response = await api.post('/v1/pulls', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-      setPreview(null);
 
-      navigate("/dashboard");
+      if (response.data) {
+        // Mettre à jour le store local
+        useCagnotteStore.getState().addCagnotte(response.data);
+
+        alert("🎉 Cagnotte créée avec succès !");
+
+        // Reset formulaire
+        setForm({
+          title: "",
+          description: "",
+          goalAmount: "",
+          currency: "XOF",
+          deadline: "",
+          type: "public",
+          participantLimit: "",
+          imageFile: null,
+        });
+        setPreview(null);
+
+        navigate("/dashboard");
+      }
 
 
     } catch (error) {

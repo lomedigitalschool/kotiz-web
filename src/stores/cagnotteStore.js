@@ -22,6 +22,42 @@ export const useCagnotteStore = create((set, get) => ({
   error: null,
   userContributions: [],
 
+  // fonction de nettoyage des données mockées
+  cleanMockData: () => {
+    try {
+      const contributions = loadFromStorage("contributions", []);
+      const cagnottes = loadFromStorage("cagnottes", []);
+
+      // Supprimer les contributions mockées (avec "Sylvie" ou données invalides)
+      const cleanContributions = contributions.filter(c =>
+        c.user !== "Sylvie" &&
+        c.cagnotteTitle !== "ANNIVESIAIE" &&
+        c.createdAt && !isNaN(new Date(c.createdAt).getTime())
+      );
+
+      // Supprimer les cagnottes mockées
+      const cleanCagnottes = cagnottes.filter(c =>
+        c.title !== "Cagnotte A" &&
+        c.title !== "Cagnotte B" &&
+        c.title !== "ANNIVESIAIE"
+      );
+
+      // Sauvegarder les données nettoyées
+      localStorage.setItem("contributions", JSON.stringify(cleanContributions));
+      localStorage.setItem("cagnottes", JSON.stringify(cleanCagnottes));
+
+      // Mettre à jour le state
+      set({
+        contributions: cleanContributions,
+        cagnottes: cleanCagnottes
+      });
+
+      console.log('Données mockées nettoyées du localStorage');
+    } catch (error) {
+      console.error('Erreur lors du nettoyage:', error);
+    }
+  },
+
   // set cagnottes avec suppression des doublons
   setCagnottes: (cagnottes) => {
     const unique = Array.from(new Set(cagnottes.map(c => c.id)))
@@ -35,18 +71,6 @@ export const useCagnotteStore = create((set, get) => ({
   fetchAllCagnottes: async () => {
     set({ loading: true, error: null });
 
-    // les donnees mocks
-    const mockCagnottes = [
-      { id: 1, title: "Cagnotte A", currentAmount: 100000, goalAmount: 500000, creatorId: 1 },
-      { id: 2, title: "Cagnotte B", currentAmount: 50000, goalAmount: 300000 },
-
-
-    ];
-
-    set({ cagnottes: mockCagnottes, loading: false });
-    localStorage.setItem("cagnottes", JSON.stringify(mockCagnottes));
-
-    /*
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -84,7 +108,6 @@ export const useCagnotteStore = create((set, get) => ({
       const stored = loadFromStorage("cagnottes", []);
       set({ cagnottes: stored, loading: false, error: error.message });
     }
-    */
   },
 
   // récupération cagnotte par id
@@ -178,15 +201,6 @@ export const useCagnotteStore = create((set, get) => ({
   fetchUserContributions: async () => {
     set({ loading: true, error: null });
 
-    // === MOCK ===
-    const mockContributions = [
-      { id: 1, cagnotteId: 1, userId: 1, amount: 50, user: "Sylvie" },
-      { id: 2, cagnotteId: 2, userId: 1, amount: 30, user: "Sylvie" },
-    ];
-    set({ contributions: mockContributions, loading: false });
-    localStorage.setItem("contributions", JSON.stringify(mockContributions));
-
-    /*
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -194,6 +208,7 @@ export const useCagnotteStore = create((set, get) => ({
         return;
       }
 
+      // Récupérer les contributions depuis localStorage (elles sont stockées localement)
       const allContributions = loadFromStorage("contributions", []);
       const userContributions = allContributions.filter(c => c.userId);
       set({ contributions: userContributions, loading: false });
@@ -203,7 +218,6 @@ export const useCagnotteStore = create((set, get) => ({
       const stored = loadFromStorage("contributions", []);
       set({ contributions: stored, loading: false, error: error.message });
     }
-    */
   },
 
   // ajout contribution
