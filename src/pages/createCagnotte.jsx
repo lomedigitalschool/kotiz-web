@@ -5,6 +5,8 @@ import illustration from "../assets/illustrations/_Cagnotte Digitale Amicale_sim
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
+import { FaHome, FaSearch, FaUser } from "react-icons/fa";
+
 
 const CreerCagnotte = () => {
   const navigate = useNavigate();
@@ -196,11 +198,27 @@ const CreerCagnotte = () => {
           className="w-40 cursor-pointer"
           onClick={() => navigate("/landing")}
         />
-        <nav className="flex gap-6 text-sm text-[#4ac260] font-medium">
-          <a href="/">Accueil</a>
-          <a href="/explorePage">Explorer</a>
-          <a href="/profil">Profil</a>
+        <nav className="flex gap-6 text-base font-medium">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 text-black hover:text-[#4ac260] transition-colors"
+          >
+            <FaHome className="text-lg" /> Accueil
+          </button>
+          <button
+            onClick={() => navigate("/explorePage")}
+            className="flex items-center gap-2 text-black hover:text-[#4ac260] transition-colors"
+          >
+            <FaSearch className="text-lg" /> Explorer
+          </button>
+          <button
+            onClick={() => navigate("/profil")}
+            className="flex items-center gap-2 text-black hover:text-[#4ac260] transition-colors"
+          >
+            <FaUser className="text-lg" /> Profil
+          </button>
         </nav>
+
       </header>
 
       <main className="flex w-full max-w-6xl bg-white rounded-2xl shadow-lg mt-10 overflow-hidden">
@@ -239,7 +257,7 @@ const CreerCagnotte = () => {
                     required
                     value={form.title}
                     onChange={handleChange}
-                    className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none"
+                    className="w-full p-3 rounded-lg bg-c focus:outline-none"
                     placeholder="Ex: Anniversaire de Marie"
                   />
                   {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}

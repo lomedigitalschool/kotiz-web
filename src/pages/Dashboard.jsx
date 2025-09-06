@@ -66,7 +66,6 @@ const Dashboard = () => {
       {/* Header */}
        <header className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/landing")}>
-          <FaArrowLeft className="text-xl hover:text-green-600" />
           <img
             src="/src/assets/logos/logo_horizontale.png"
             alt="Logo horizontal"

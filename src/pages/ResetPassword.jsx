@@ -17,18 +17,18 @@ const ResetPassword = () => {
     }
 
     // données mocks
-    console.log("Réinitialisation avec token :", token, "nouveau mot de passe :", password);
-    setMessage("✅ Mot de passe réinitialisé avec succès !");
-    setTimeout(() => navigate("/login"), 2000);
+    //console.log("Réinitialisation avec token :", token, "nouveau mot de passe :", password);
+    //setMessage("✅ Mot de passe réinitialisé avec succès !");
+   // setTimeout(() => navigate("/login"), 2000);
 
-    /*
+    
     api.post(`/auth/reset-password/${token}`, { password })
       .then(res => {
         setMessage(res.data.message);
         setTimeout(() => navigate("/login"), 2000);
       })
       .catch(err => setMessage(err.response?.data?.error || "Erreur"));
-    */
+    
   };
 
   return (
@@ -42,7 +42,7 @@ const ResetPassword = () => {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:outline-none"
+            className="w-full p-3 border rounded-lg focus:outline-none bg-[#4CA26033] placeholder-gray-700"
           />
           <input
             type="password"
@@ -50,7 +50,7 @@ const ResetPassword = () => {
             required
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:outline-none"
+            className="w-full p-3 border rounded-lg focus:outline-none bg-[#4CA26033] placeholder-gray-700"
           />
           <button
             type="submit"

@@ -1,9 +1,9 @@
-// src/pages/ExplorerPage.jsx
 import React, { useEffect, useState } from "react";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
-import { FaArrowLeft, FaHome, FaUser, FaCog } from "react-icons/fa";
+import { FaHome, FaUser, FaTachometerAlt } from "react-icons/fa";
+
 
 export default function ExplorerPage() {
   const { cagnottes, fetchAllCagnottes } = useCagnotteStore();
@@ -11,6 +11,7 @@ export default function ExplorerPage() {
   const [filterType, setFilterType] = useState("");
   const [sortOption, setSortOption] = useState("popular");
   const [loading, setLoading] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const navigate = useNavigate();
 
   // On récupère toutes les cagnottes au chargement de la page
@@ -43,23 +44,11 @@ export default function ExplorerPage() {
 
         {/* Logo + flèche retour vers la page d'accueil */}
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/landing")}>
-          <FaArrowLeft className="text-xl hover:text-green-600" />
           <img
             src="/src/assets/logos/logo_horizontale.png"
             alt="Logo horizontal"
             className="w-40"
           />
-
-          <select
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            className="border p-2 rounded"
-          >
-            <option value="recent">Récents</option>
-            <option value="popular">Populaires</option>
-            <option value="amount-high">Montants élevés</option>
-            <option value="amount-low">Montants faibles</option>
-          </select>
         </div>
 
         {/* Navigation principale avec icônes */}
@@ -73,20 +62,71 @@ export default function ExplorerPage() {
                 <FaHome /> Accueil
               </button>
             </li>
-            <li>
+            <li className="relative group">
               <button
-                onClick={() => navigate("/profil")}
                 className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
               >
                 <FaUser /> Profil
               </button>
+
+              {/* Menu déroulant */}
+              <ul className="absolute left-0 mt-2 w-48 bg-white border rounded shadow-md opacity-0 group-hover:opacity-100 group-hover:visible invisible transition-opacity">
+                <li>
+                  <button
+                    onClick={() => navigate("/profil")}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    Accéder à mon compte
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setShowLogoutConfirm(true)}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  >
+                    Déconnexion
+                  </button>
+                </li>
+              </ul>
             </li>
+            {/* Pop-up de confirmation */}
+            {showLogoutConfirm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded shadow-lg w-80">
+                  <h2 className="text-lg font-semibold mb-4">Confirmation</h2>
+                  <p className="mb-6">Voulez-vous vraiment vous déconnecter ?</p>
+                  <div className="flex justify-end gap-4">
+                    <button
+                      onClick={() => setShowLogoutConfirm(false)}
+                      className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                    >
+                      Non
+                    </button>
+                    <button
+                      onClick={() => {
+                        // la  Logique de déconnexion
+                        localStorage.removeItem("token");
+                        setShowLogoutConfirm(false);
+                        navigate("/login");
+                      }}
+                      className="px-4 py-2 text-white rounded"
+                      style={{ backgroundColor: "#4CA260" }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = 0.9}
+                      onMouseLeave={e => e.currentTarget.style.opacity = 1}
+                    >
+                      Oui
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <li>
               <button
-                onClick={() => navigate("/settings")}
+                onClick={() => navigate("/dashboard")}
                 className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
               >
-                <FaCog /> Settings
+                <FaTachometerAlt /> Dashboard
               </button>
             </li>
           </ul>
@@ -159,12 +199,24 @@ export default function ExplorerPage() {
           return (
             <li
               key={cagnotte.id}
-              className={`border rounded p-3 shadow hover:shadow-md transition cursor-pointer ${
-                isPopular ? "border-yellow-400" : ""
-              }`}
+              className={`border rounded p-3 shadow hover:shadow-md transition cursor-pointer ${isPopular ? "border-yellow-400" : ""}`}
               onClick={() => navigate(`/cagnotte/${cagnotte.id}`)}
             >
+              {/* Image de la cagnotte */}
+              {cagnotte.image && (
+                <img
+                  src={cagnotte.image}
+                  alt={cagnotte.title}
+                  className="w-full h-40 object-cover rounded mb-2"
+                />
+              )}
+
               <h3 className="font-semibold">{cagnotte.title}</h3>
+
+              {/* Description */}
+              {cagnotte.description && (
+                <p className="text-sm text-gray-700 mt-1 mb-2">{cagnotte.description}</p>
+              )}
 
               {/* Barre de progression */}
               <div className="w-full bg-gray-200 h-3 rounded mt-2">
@@ -180,6 +232,7 @@ export default function ExplorerPage() {
                 <span className="text-yellow-600 font-bold text-sm">🔥 Populaire</span>
               )}
             </li>
+
           );
         })}
       </ul>

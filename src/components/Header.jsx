@@ -2,6 +2,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from './Button';
+import { FaCogs, FaQuestionCircle, FaSearch } from "react-icons/fa";
+
 
 // Composant Header : barre de navigation principale
 const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
@@ -22,29 +24,29 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
         <ul className="flex gap-6 font-medium space-between">
           <li>
             {/* Bouton pour faire défiler jusqu'aux fonctionnalités */}
-            <button 
+            <button
               onClick={scrollToFeatures}
-              className="text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
+              className="flex items-center gap-2 text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
             >
-              Fonctionnalités
+              <FaCogs className="text-lg" /> Fonctionnalités
             </button>
           </li>
           <li>
             {/* Bouton pour faire défiler jusqu'à la section "Comment ça marche" */}
-            <button 
+            <button
               onClick={scrollToHowItWorks}
-              className="text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
+              className="flex items-center gap-2 text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
             >
-              Comment ça marche
+              <FaQuestionCircle className="text-lg" /> Comment ça marche ?
             </button>
           </li>
           <li>
             {/* Bouton pour naviguer vers la page d'exploration */}
-            <button 
+            <button
               onClick={() => navigate('/explorePage')}
-              className="text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
+              className="flex items-center gap-2 text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
             >
-              Explorer
+              <FaSearch className="text-lg" /> Explorer
             </button>
           </li>
         </ul>
@@ -53,16 +55,16 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
       {/* Actions utilisateur */}
       <div className="flex gap-3 md:gap-4 items-center">
         {/* Bouton pour se connecter */}
-        <Button 
-          onClick={() => navigate('/login')} 
+        <Button
+          onClick={() => navigate('/login')}
           variant="tertiary"
           className="text-sm md:text-base py-3 px-6"
         >
           Se connecter
         </Button>
         {/* Bouton pour créer un compte */}
-        <Button 
-          onClick={() => navigate('/register')} 
+        <Button
+          onClick={() => navigate('/register')}
           variant="primary"
           className="text-sm md:text-base py-3 px-6"
         >

@@ -8,15 +8,15 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     // Donnees mocks
-    console.log("Envoi email de réinitialisation pour :", email);
-    setMessage("✅ Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.");
+   // console.log("Envoi email de réinitialisation pour :", email);
+    //setMessage("✅ Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.");
 
-    //  appel API réelle
-    /*
+    //  appel API 
+    
     api.post("/auth/forgot-password", { email })
       .then(res => setMessage(res.data.message))
       .catch(err => setMessage(err.response?.data?.error || "Erreur"));
-    */
+    
   };
 
   return (
@@ -30,11 +30,11 @@ const ForgotPassword = () => {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Email / Numéro"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:outline-none"
+            className="w-full p-3 border rounded-lg focus:outline-none bg-[#4CA26033] placeholder-gray-700"
           />
           <button
             type="submit"
