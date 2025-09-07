@@ -205,7 +205,7 @@ export default function ExplorerPage() {
               onClick={() => navigate(`/cagnottes/${cagnotte.id}`)}
             >
               {/* Image de la cagnotte */}
-              {cagnotte.imageUrl && cagnotte.imageUrl !== 'null' && cagnotte.imageUrl !== 'undefined' && (
+              {cagnotte.imageUrl && cagnotte.imageUrl !== 'null' && cagnotte.imageUrl !== 'undefined' ? (
                 <img
                   src={cagnotte.imageUrl.startsWith('http') ? cagnotte.imageUrl : `http://localhost:5000${cagnotte.imageUrl}`}
                   alt={cagnotte.title}
@@ -215,6 +215,10 @@ export default function ExplorerPage() {
                     e.target.style.display = 'none';
                   }}
                 />
+              ) : (
+                <div className="w-full h-40 bg-gray-200 rounded mb-2 flex items-center justify-center">
+                  <span className="text-gray-500">Aucune image</span>
+                </div>
               )}
 
               <h3 className="font-semibold">{cagnotte.title}</h3>
