@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
-import { FaArrowLeft, FaHome, FaUser, FaCog } from "react-icons/fa";
+import { FaArrowLeft, FaHome, FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt } from "react-icons/fa";
 
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { cagnottes, fetchAllCagnottes, contributions, fetchUserContributions, loading, error, deleteCagnotte } = useCagnotteStore();
-  const [userStats, setUserStats] =useState({});
+  const [userStats, setUserStats] = useState({});
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     // ✅ Nettoyer les données mockées restantes au premier chargement
@@ -62,9 +63,10 @@ const Dashboard = () => {
   const COLORS = ["#3B5BAB", "#4CA260", "#997A8D", "#806D5A", "#149414", "#4E3D28", "#BBD2E1", "#3A020D", "#C1BFB1", "#22780F", "#997A8D", "#40826D", "#BBACAC", "#5A5E6B", "#83A697"];
 
   return (
-    <div className="p-6 mx-auto font-roboto" style={{ maxWidth: "1400px" }}>
+    <div className="pt-[calc(4rem+1rem)] p-6 mx-auto font-roboto" style={{ maxWidth: "1400px" }}>
       {/* Header */}
-       <header className="flex justify-between items-center mb-6">
+      <header className="fixed top-0 left-0 w-full flex justify-between items-center px-6 md:px-12 py-4 bg-white shadow-md z-50">
+        {/* Logo */}
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/landing")}>
           <img
             src="/src/assets/logos/logo_horizontale.png"
@@ -73,6 +75,67 @@ const Dashboard = () => {
           />
         </div>
 
+        {/* Navigation principale */}
+        <nav className="hidden md:flex flex-1 mx-20">
+          <ul className="flex justify-between w-full font-medium">
+            
+            <li>
+              <button
+                onClick={() => navigate("/explorePage")}
+                className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
+              >
+                <FaSearch className="text-green-200 opacity-60" /> Explorer
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate("/kyc")}
+                className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
+              >
+                <FaIdCard className="text-green-200 opacity-60" /> Vérifier mon identité
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate("/notifications")}
+                className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
+              >
+                <FaBell className="text-green-200 opacity-60" /> Notifications
+              </button>
+            </li>
+            <li className="relative group">
+              <button
+                className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
+              >
+                <FaUser className="text-green-200 opacity-60" /> Profil
+              </button>
+
+              {/* Menu déroulant */}
+              <ul className="absolute left-0 mt-2 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 z-10">
+                <li>
+                  <button
+                    onClick={() => navigate("/profil")}
+                    className="flex items-center gap-2 w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors duration-200 rounded-t-lg"
+                    style={{ color: '#3B5BAB' }}
+                  >
+                    <FaCog style={{ color: '#3B5BAB' }} /> Accéder à mon compte
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setShowLogoutConfirm(true)}
+                    className="flex items-center gap-2 w-full text-left px-4 py-3 hover:bg-red-50 hover:text-red-600 transition-colors duration-200 rounded-b-lg"
+                    style={{ color: '#dc2626' }}
+                  >
+                    <FaSignOutAlt style={{ color: '#dc2626' }} /> Déconnexion
+                  </button>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+
+        {/* Actions utilisateur */}
         <div className="flex gap-3 md:gap-4 items-center">
           <button
             onClick={() => navigate("/create-cagnotte")}
@@ -83,6 +146,37 @@ const Dashboard = () => {
           </button>
         </div>
       </header>
+
+      {/* Pop-up de confirmation de déconnexion */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow-lg w-80">
+            <h2 className="text-lg font-semibold mb-4">Confirmation</h2>
+            <p className="mb-6">Voulez-vous vraiment vous déconnecter ?</p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Non
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  setShowLogoutConfirm(false);
+                  navigate("/login");
+                }}
+                className="px-4 py-2 text-white rounded"
+                style={{ backgroundColor: "#4CA260" }}
+                onMouseEnter={e => e.currentTarget.style.opacity = 0.9}
+                onMouseLeave={e => e.currentTarget.style.opacity = 1}
+              >
+                Oui
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -155,8 +249,8 @@ const Dashboard = () => {
           const progress = goalAmount > 0 ? Math.min((collectedAmount / goalAmount) * 100, 100) : 0;
 
           return (
-            <div key={c.id} className="bg-white rounded-2xl shadow p-6">
-              {c.imageUrl && c.imageUrl !== 'null' && c.imageUrl !== 'undefined' && (
+            <div key={c.id} className="bg-white rounded-2xl shadow p-6 cursor-pointer" onClick={() => navigate(`/cagnottes/${c.id}`)}>
+              {c.imageUrl && c.imageUrl !== 'null' && c.imageUrl !== 'undefined' ? (
                 <img
                   src={c.imageUrl.startsWith('http') ? c.imageUrl : `http://localhost:5000${c.imageUrl}`}
                   alt={c.title}
@@ -166,6 +260,10 @@ const Dashboard = () => {
                     e.target.style.display = 'none';
                   }}
                 />
+              ) : (
+                <div className="w-full h-40 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
+                  <span className="text-gray-500">Aucune image</span>
+                </div>
               )}
               <h3 className="text-xl font-bold mb-1">{c.title}</h3>
               <p className="text-gray-700 mb-2">{c.description}</p>

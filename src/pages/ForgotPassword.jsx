@@ -1,6 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
+import api from "../services/api";
 
 const ForgotPassword = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
 
@@ -21,6 +25,17 @@ const ForgotPassword = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      {/* Bouton de retour */}
+      <div className="w-full max-w-md mb-4">
+        <button
+          onClick={() => navigate("/login")}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors mb-4"
+        >
+          <FaArrowLeft className="text-lg" />
+          Retour
+        </button>
+      </div>
+
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold mb-4 text-center">Mot de passe oublié</h2>
         <p className="mb-6 text-gray-600 text-center">

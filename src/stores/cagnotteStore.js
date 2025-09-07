@@ -243,9 +243,8 @@ export const useCagnotteStore = create((set, get) => ({
         c.id === updatedCagnotte.id ? updatedCagnotte : c
       );
 
-      // === MOCK Notification ===
       sendNotification({
-        userId: cagnotte.creatorId || 1, // mock ID si absent
+        userId: cagnotte.creatorId || 1,
         type: "newContribution",
         data: {
           amount: contribution.amount,
@@ -255,12 +254,11 @@ export const useCagnotteStore = create((set, get) => ({
         }
       });
 
-      // === AJOUT : notification contributeur (résultat paiement) ===
       sendNotification({
-        userId: contribution.userId || 0, // invité = 0
+        userId: contribution.userId || 0,
         type: "paymentResult",
         data: {
-          status: "success", // ici mock, à remplacer par vrai statut
+          status: "success",
           amount: contribution.amount,
           cagnotteTitle: cagnotte.title,
           receiptLink: `/recu/${Date.now()}`,

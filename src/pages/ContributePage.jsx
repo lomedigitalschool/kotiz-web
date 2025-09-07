@@ -131,6 +131,13 @@ const ContributePage = () => {
 
   return (
     <div className="p-6 mx-auto" style={{ maxWidth: "750px", fontFamily: "Roboto, sans-serif" }}>
+      {/* Bouton Retour */}
+      <button
+        onClick={() => window.history.back()}
+        className="mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
+      >
+        ← Retour
+      </button>
       <h1 className="text-4xl font-bold mb-6 text-gray-800">
         Contribuer à "{cagnotte.title}"
       </h1>

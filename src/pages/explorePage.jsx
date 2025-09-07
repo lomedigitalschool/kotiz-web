@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
-import { FaHome, FaUser, FaTachometerAlt } from "react-icons/fa";
+import { FaHome, FaUser, FaTachometerAlt, FaSignOutAlt, FaCog } from "react-icons/fa";
 
 
 export default function ExplorerPage() {
@@ -52,39 +52,41 @@ export default function ExplorerPage() {
         </div>
 
         {/* Navigation principale avec icônes */}
-        <nav className="hidden md:flex mx-4">
-          <ul className="flex gap-6 font-medium">
+        <nav className="hidden md:flex flex-1 mx-20">
+          <ul className="flex justify-between w-full font-medium">
             <li>
               <button
                 onClick={() => navigate("/landing")}
                 className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
               >
-                <FaHome /> Accueil
+                <FaHome className="text-green-200 opacity-60" /> Accueil
               </button>
             </li>
             <li className="relative group">
               <button
                 className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
               >
-                <FaUser /> Profil
+                <FaUser className="text-green-200 opacity-60" /> Profil
               </button>
 
-              {/* Menu déroulant */}
-              <ul className="absolute left-0 mt-2 w-48 bg-white border rounded shadow-md opacity-0 group-hover:opacity-100 group-hover:visible invisible transition-opacity">
+              {/* Menu déroulant amélioré */}
+              <ul className="absolute left-0 mt-2 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 z-10">
                 <li>
                   <button
                     onClick={() => navigate("/profil")}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    className="flex items-center gap-2 w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors duration-200 rounded-t-lg"
+                    style={{ color: '#3B5BAB' }}
                   >
-                    Accéder à mon compte
+                    <FaCog style={{ color: '#3B5BAB' }} /> Accéder à mon compte
                   </button>
                 </li>
                 <li>
                   <button
                     onClick={() => setShowLogoutConfirm(true)}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    className="flex items-center gap-2 w-full text-left px-4 py-3 hover:bg-red-50 hover:text-red-600 transition-colors duration-200 rounded-b-lg"
+                    style={{ color: '#dc2626' }}
                   >
-                    Déconnexion
+                    <FaSignOutAlt style={{ color: '#dc2626' }} /> Déconnexion
                   </button>
                 </li>
               </ul>
@@ -126,7 +128,7 @@ export default function ExplorerPage() {
                 onClick={() => navigate("/dashboard")}
                 className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
               >
-                <FaTachometerAlt /> Dashboard
+                <FaTachometerAlt className="text-green-200 opacity-60" /> Dashboard
               </button>
             </li>
           </ul>
@@ -200,14 +202,18 @@ export default function ExplorerPage() {
             <li
               key={cagnotte.id}
               className={`border rounded p-3 shadow hover:shadow-md transition cursor-pointer ${isPopular ? "border-yellow-400" : ""}`}
-              onClick={() => navigate(`/cagnotte/${cagnotte.id}`)}
+              onClick={() => navigate(`/cagnottes/${cagnotte.id}`)}
             >
               {/* Image de la cagnotte */}
-              {cagnotte.image && (
+              {cagnotte.imageUrl && cagnotte.imageUrl !== 'null' && cagnotte.imageUrl !== 'undefined' && (
                 <img
-                  src={cagnotte.image}
+                  src={cagnotte.imageUrl.startsWith('http') ? cagnotte.imageUrl : `http://localhost:5000${cagnotte.imageUrl}`}
                   alt={cagnotte.title}
                   className="w-full h-40 object-cover rounded mb-2"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
                 />
               )}
 

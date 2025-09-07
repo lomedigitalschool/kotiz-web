@@ -203,19 +203,19 @@ const CreerCagnotte = () => {
             onClick={() => navigate("/")}
             className="flex items-center gap-2 text-black hover:text-[#4ac260] transition-colors"
           >
-            <FaHome className="text-lg" /> Accueil
+            <FaHome className="text-lg text-green-200 opacity-60" /> Accueil
           </button>
           <button
             onClick={() => navigate("/explorePage")}
             className="flex items-center gap-2 text-black hover:text-[#4ac260] transition-colors"
           >
-            <FaSearch className="text-lg" /> Explorer
+            <FaSearch className="text-lg text-green-200 opacity-60" /> Explorer
           </button>
           <button
             onClick={() => navigate("/profil")}
             className="flex items-center gap-2 text-black hover:text-[#4ac260] transition-colors"
           >
-            <FaUser className="text-lg" /> Profil
+            <FaUser className="text-lg text-green-200 opacity-60" /> Profil
           </button>
         </nav>
 
@@ -257,7 +257,7 @@ const CreerCagnotte = () => {
                     required
                     value={form.title}
                     onChange={handleChange}
-                    className="w-full p-3 rounded-lg bg-c focus:outline-none"
+                    className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none"
                     placeholder="Ex: Anniversaire de Marie"
                   />
                   {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}

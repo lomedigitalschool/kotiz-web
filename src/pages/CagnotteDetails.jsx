@@ -84,6 +84,13 @@ const CagnotteDetails = () => {
 
   return (
     <div className="p-5 font-roboto max-w-6xl mx-auto">
+      {/* Bouton Retour */}
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
+      >
+        ← Retour
+      </button>
       <div className="bg-white rounded-[18px] shadow-lg overflow-hidden">
         <div>
           {cagnotte.imageUrl && cagnotte.imageUrl !== 'null' && cagnotte.imageUrl !== 'undefined' ? (
@@ -121,20 +128,12 @@ const CagnotteDetails = () => {
                         : "#FBBF24",
                 }}
               >
-                {/* --- ORIGINAL AVEC API ---
-            {cagnotte.status?.[0].toUpperCase() + cagnotte.status.slice(1)}
-           */}
-                {/* --- VERSION MOCK SÉCURISÉE --- */}
                 {cagnotte.status
                   ? cagnotte.status[0].toUpperCase() + cagnotte.status.slice(1)
                   : "Inconnu"}
 
                 {" | "}
 
-                {/* --- ORIGINAL AVEC API ---
-                {cagnotte.type?.[0].toUpperCase() + cagnotte.type.slice(1)}
-               */}
-                {/* --- VERSION MOCK SÉCURISÉE --- */}
                 {cagnotte.type
                   ? cagnotte.type[0].toUpperCase() + cagnotte.type.slice(1)
                   : "Inconnu"}

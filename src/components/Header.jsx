@@ -10,7 +10,7 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
   const navigate = useNavigate(); // Hook pour naviguer entre les pages
 
   return (
-    <header className="fixed top-0 left-0 w-full flex justify-between items-center px-6 md:px-12 py-4 bg-white shadow-md z-50">
+    <header className="fixed top-0 left-0 w-full flex  items-center px-6 md:px-12 py-4 bg-white shadow-md z-50">
       {/* Logo horizontal de l'application */}
       <img
         src="/src/assets/logos/logo_horizontale.png"
@@ -20,24 +20,25 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
       />
 
       {/* Navigation principale */}
-      <nav className="hidden md:flex mx-4">
-        <ul className="flex gap-6 font-medium space-between">
+      <nav className="hidden md:flex flex-1 mx-20">
+        <ul className="flex justify-between w-full font-medium">
           <li>
             {/* Bouton pour faire défiler jusqu'aux fonctionnalités */}
             <button
               onClick={scrollToFeatures}
               className="flex items-center gap-2 text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
             >
-              <FaCogs className="text-lg" /> Fonctionnalités
+              <FaCogs className="text-lg text-green-200 opacity-60" /> Fonctionnalités
             </button>
           </li>
+          
           <li>
             {/* Bouton pour faire défiler jusqu'à la section "Comment ça marche" */}
             <button
               onClick={scrollToHowItWorks}
               className="flex items-center gap-2 text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
             >
-              <FaQuestionCircle className="text-lg" /> Comment ça marche ?
+              <FaQuestionCircle className="text-lg text-green-200 opacity-60" /> Comment ça marche ?
             </button>
           </li>
           <li>
@@ -46,7 +47,7 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
               onClick={() => navigate('/explorePage')}
               className="flex items-center gap-2 text-[#000000] hover:text-[#4ca260] transition-colors duration-300 font-semibold"
             >
-              <FaSearch className="text-lg" /> Explorer
+              <FaSearch className="text-lg text-green-200 opacity-60" /> Explorer
             </button>
           </li>
         </ul>

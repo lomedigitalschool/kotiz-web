@@ -107,7 +107,7 @@ export default function KycFormForm() {
 
                     {/* Titre et description */}
                     <h2 className="text-3xl font-extrabold text-center text-gray-900 mb-2">
-                        Vérifier mon identité (KYC)
+                        Vérifier mon identité
                     </h2>
                     <p className="text-gray-700 text-center mb-8 text-lg">
                         Pour assurer la sécurité de vos transactions et respecter les réglementations en vigueur, nous devons vérifier votre identité. Ce processus est rapide et confidentiel.
