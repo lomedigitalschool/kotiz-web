@@ -16,6 +16,7 @@ import ResetPassword from "./pages/ResetPassword";
 import PaymentResult from "./pages/PaymentResult";
 import NotificationsPage from "./pages/Notifications";
 import KycForm from "./pages/KycForm";
+import Transactions from "./pages/Transactions";
 
 
 
@@ -59,6 +60,7 @@ export default function App() {
       <Route path="/kyc" element={<KycForm />} />
       <Route path="/payment-result" element={<PaymentResult />} />
       <Route path="/notifications" element={<NotificationsPage />} />
+      <Route path="/transactions" element={<Transactions />} />
 
 
     </Routes>

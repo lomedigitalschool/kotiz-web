@@ -4,8 +4,13 @@ import api from "../services/api";
 import QRCode from "react-qr-code";
 import { colors } from "../theme/colors";
 import { useCagnotteStore } from "../stores/cagnotteStore";
+import { FaFacebook, FaWhatsapp, FaEnvelope } from "react-icons/fa";
+import { FiShare2 } from "react-icons/fi";
+
+
 
 const ITEMS_PER_PAGE = 3;
+
 
 const CagnotteDetails = () => {
   const { id } = useParams();
@@ -18,6 +23,7 @@ const CagnotteDetails = () => {
   const { currentUser } = useCagnotteStore();
   const [page, setPage] = useState(1);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showShareOptions, setShowShareOptions] = useState(false);
 
   useEffect(() => {
     const fetchCagnotteDetails = async () => {
@@ -81,6 +87,8 @@ const CagnotteDetails = () => {
     navigator.clipboard.writeText(shareLink);
     alert("Lien copié !");
   };
+
+
 
   return (
     <div className="p-5 font-roboto max-w-6xl mx-auto">
@@ -251,28 +259,70 @@ const CagnotteDetails = () => {
               </div>
             )}
           </div>
+          {/* Partage et réseaux dans la même div */}
+          <div className="flex flex-col md:flex-row items-center gap-4 mt-2 p-4 border rounded-lg bg-gray-50">
 
-          {/* Partage */}
-          <div>
-            <h2 className="text-2xl font-semibold mb-2 border-b pb-1">Partager cette cagnotte</h2>
-            <div className="flex flex-col md:flex-row items-center gap-4 mt-2">
-              <QRCode value={shareLink} size={120} />
-              <div className="flex flex-col gap-2">
-                <p className="break-all text-gray-700">{shareLink}</p>
-                <button
-                  onClick={handleCopyLink}
-                  className="px-6 py-2 text-white rounded-md hover:opacity-90 transition"
-                  style={{ backgroundColor: colors.primary }}
-                >
-                  Copier le lien
-                </button>
-              </div>
+            {/* QR Code */}
+            <QRCode value={shareLink} size={120} />
+
+            {/* Partie droite : lien + actions */}
+            <div className="flex flex-col items-start gap-2 ml-4 relative">
+
+              {/* Lien à copier */}
+              <p className="break-all text-gray-700">{shareLink}</p>
+
+              {/* Bouton copier */}
+              <button
+                onClick={handleCopyLink}
+                className="px-6 py-2 text-white rounded-md hover:opacity-90 transition"
+                style={{ backgroundColor: colors.primary }}
+              >
+                Copier le lien
+              </button>
+
+              {/* Icône de partage */}
+              <button
+                onClick={() => setShowShareOptions(!showShareOptions)}
+                className="mt-2 p-2 rounded-md hover:bg-gray-200 transition flex items-center gap-1"
+                title="Partager via réseaux"
+              >
+                <FiShare2 size={20} />
+                <span className="text-gray-700 font-medium">Partager</span>
+              </button>
+
+              {/* Réseaux sociaux */}
+              {showShareOptions && (
+                <div className="flex gap-3 mt-2">
+                  <button
+                    onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareLink)}`, "_blank")}
+                    className="p-2 rounded bg-green-500 text-white text-xl"
+                    title="WhatsApp"
+                  >
+                    <FaWhatsapp />
+                  </button>
+                  <button
+                    onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`, "_blank")}
+                    className="p-2 rounded bg-blue-700 text-white text-xl"
+                    title="Facebook"
+                  >
+                    <FaFacebook />
+                  </button>
+                  <button
+                    onClick={() => window.location.href = `mailto:?subject=Découvrez cette cagnotte&body=${encodeURIComponent(shareLink)}`}
+                    className="p-2 rounded bg-gray-700 text-white text-xl"
+                    title="Email"
+                  >
+                    <FaEnvelope />
+                  </button>
+                </div>
+              )
+              }
             </div>
           </div>
-
         </div>
       </div>
     </div>
+
   );
 };
 

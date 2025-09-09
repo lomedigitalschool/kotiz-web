@@ -6,6 +6,7 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 const ContributePage = () => {
   const { id } = useParams();
   const { addContribution } = useCagnotteStore();
+
   const [cagnotte, setCagnotte] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,65 +16,123 @@ const ContributePage = () => {
   const [message, setMessage] = useState("");
   const [receipt, setReceipt] = useState(null);
 
-  // États locaux pour la soumission
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // Erreurs inline
+  // erreurs inline
   const [amountError, setAmountError] = useState("");
   const [messageError, setMessageError] = useState("");
 
-  // Chargement cagnotte au montage
+  // gestion invité  et  utilisateur connecté
+  const isLoggedIn = !!localStorage.getItem("token");
+  const isGuest = !isLoggedIn;
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestNameError, setGuestNameError] = useState("");
+  const [guestEmailError, setGuestEmailError] = useState("");
+  const [guestPhoneError, setGuestPhoneError] = useState("");
+
+
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [mobileOption, setMobileOption] = useState("tmoney");
+
+  // Charger les données de la cagnotte
   useEffect(() => {
     const fetchCagnotteData = async () => {
       try {
         setLoading(true);
-
         const response = await api.get(`/v1/pulls/${id}`);
         setCagnotte(response.data);
         setError(null);
-
       } catch (err) {
-        setError(err.response?.data?.message || "Erreur lors du chargement de la cagnotte");
+        setError(err.response?.data?.message || "Impossible de charger la cagnotte.");
       } finally {
         setLoading(false);
       }
     };
-
     fetchCagnotteData();
   }, [id]);
-
 
   if (loading) return <p style={{ marginTop: "5rem", textAlign: "center", color: "#6b7280" }}>Chargement...</p>;
   if (error) return <p style={{ marginTop: "5rem", textAlign: "center", color: "#dc2626" }}>{error}</p>;
   if (!cagnotte) return null;
 
-  // Validation basique formulaire
+  // Validation du formulaire avant soumission
   const validateForm = () => {
     let isValid = true;
-    setAmountError("");
-    setMessageError("");
+    setAmountError(""); setMessageError("");
+    setGuestNameError(""); setGuestEmailError(""); setGuestPhoneError("");
 
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
       setAmountError("Veuillez entrer un montant valide supérieur à 0.");
       isValid = false;
     }
 
-    if (message.length > 200) {
-      setMessageError("Le message ne doit pas dépasser 200 caractères.");
+    if (message.length > 240) {
+      setMessageError("Le message ne doit pas dépasser 240 caractères.");
       isValid = false;
+    }
+
+    if (isGuest) {
+      if (!guestName.trim()) { setGuestNameError("Votre nom est requis."); isValid = false; }
+      if (!guestEmail.trim() || !guestEmail.includes("@")) { setGuestEmailError("Email valide requis."); isValid = false; }
+      if (!guestPhone.trim()) { setGuestPhoneError("Numéro requis."); isValid = false; }
     }
 
     return isValid;
   };
 
-  // Soumission contribution (stockage local)
+  // création de la contribution sur le serveur
+  const createContributionOnServer = async (payload) => {
+    try {
+      const method = paymentMethod === "mobile" ? "mobile_money" : "card";
+
+      if (isGuest) {
+        const guestPayload = {
+          amount: payload.amount,
+          message: payload.message,
+          paymentMethod: method,
+          contributorName: payload.guestName,
+          contributorEmail: payload.guestEmail,
+          phoneNumber: payload.guestPhone,
+          mobileOption: payload.mobileOption,
+          anonymous: payload.anonymous,
+        };
+
+        console.log("Payload invité:", guestPayload);
+        return (await api.post(`/v1/public/contributions/anonymous/${id}`, guestPayload)).data;
+      } else {
+        // Contribution utilisateur connecté
+        const userEmail = localStorage.getItem("userEmail") || "user@example.com";
+        const userPhone = localStorage.getItem("userPhone") || "+000000000";
+
+        const userPayload = {
+          pullId: Number(id),
+          amount: payload.amount,
+          message: payload.message,
+          paymentMethod: method,
+          isAnonymous: payload.anonymous,
+          contributorName: payload.anonymous ? "Anonyme" : "Utilisateur connecté",
+          contributorEmail: userEmail,
+          phoneNumber: userPhone,
+        };
+
+        console.log("Payload utilisateur connecté:", userPayload);
+        return (await api.post(`/v1/contributions`, userPayload)).data;
+      }
+    } catch (err) {
+      console.error("Erreur contribution:", err.response?.data || err.message);
+      throw err;
+    }
+  };
+
+  // soumission locale pour mise à jour imediate
   const submitContribution = async (data) => {
     setSubmitting(true);
     setSubmitError("");
     try {
-      // Simuler un délai de traitement
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const newContribution = {
         ...data,
@@ -85,10 +144,10 @@ const ContributePage = () => {
         status: "completed"
       };
 
-      // Ajouter la contribution au store
+      // Ajout dans le store local
       addContribution({
         ...newContribution,
-        user: anonymous ? "Anonyme" : "Utilisateur connecté"
+        user: anonymous ? "Anonyme" : isGuest ? guestName : "Utilisateur connecté"
       });
 
       setReceipt({
@@ -99,13 +158,10 @@ const ContributePage = () => {
           providerReference: `PROV-${Date.now()}`
         },
         cagnotteTitle: cagnotte.title,
-        userName: newContribution.anonymous ? "Anonyme" : "Utilisateur connecté",
+        userName: newContribution.anonymous ? "Anonyme" : isGuest ? guestName : "Utilisateur connecté"
       });
 
-      // Reset
-      setAmount("");
-      setAnonymous(false);
-      setMessage("");
+      setAmount(""); setAnonymous(false); setMessage(""); setGuestName(""); setGuestEmail(""); setGuestPhone("");
     } catch (err) {
       setSubmitError("Une erreur est survenue lors de la contribution.");
     } finally {
@@ -113,102 +169,136 @@ const ContributePage = () => {
     }
   };
 
-  // Gestion submit
-  const handleSubmit = (e) => {
+  // soumission du formulaire
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const newContribution = {
-      cagnotteId: cagnotte.id,
-      userId: anonymous ? null : 1,
-      amount: Number(amount),
-      anonymous,
-      message,
-    };
+    const newContribution = { cagnotteId: cagnotte.id, userId: anonymous ? null : 1, amount: Number(amount), anonymous, message };
 
-    submitContribution(newContribution);
+    try {
+      setSubmitting(true); setSubmitError("");
+
+      const serverPayload = {
+        amount: Number(amount),
+        message,
+        anonymous,
+        paymentMethod,
+        mobileOption,
+        guestName,
+        guestEmail,
+        guestPhone
+      };
+
+      const serverResp = await createContributionOnServer(serverPayload);
+
+      // Si le serveur renvoie une redirection, on redirige
+      if (serverResp?.redirectUrl) { window.location.href = serverResp.redirectUrl; return; }
+
+      await submitContribution(newContribution);
+
+    } catch (err) {
+      // mme si le serveur echoue on met à jour localement
+      await submitContribution(newContribution);
+    } finally { setSubmitting(false); }
   };
 
   return (
     <div className="p-6 mx-auto" style={{ maxWidth: "750px", fontFamily: "Roboto, sans-serif" }}>
-      {/* Bouton Retour */}
-      <button
-        onClick={() => window.history.back()}
-        className="mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
-      >
-        ← Retour
-      </button>
-      <h1 className="text-4xl font-bold mb-6 text-gray-800">
-        Contribuer à "{cagnotte.title}"
-      </h1>
+      {/* Bouton retour */}
+      <button onClick={() => window.history.back()} className="mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition">← Retour</button>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded-2xl shadow"
-        style={{ padding: "1.5rem" }}
-      >
+      <h1 className="text-4xl font-bold mb-6 text-gray-800">Contribuer à "{cagnotte.title}"</h1>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow" style={{ padding: "1.5rem" }}>
+        {/* Montant */}
         <div>
-          <label className="block font-medium mb-1" style={{ color: "#374151" }}>
-            Montant ({cagnotte.currency})
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Entrez le montant"
-          />
+          <label className="block font-medium mb-1" style={{ color: "#374151" }}>Montant ({cagnotte.currency})</label>
+          <input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)}
+            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Entrez le montant" />
           {amountError && <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.25rem" }}>{amountError}</p>}
         </div>
 
+        {/* Checkbox anonymat */}
         <div className="flex items-center gap-2 mt-3">
-          <input
-            type="checkbox"
-            checked={anonymous}
-            onChange={() => setAnonymous(!anonymous)}
-            id="anonymous"
-            style={{ width: "1rem", height: "1rem" }}
-          />
-          <label htmlFor="anonymous" style={{ color: "#374151" }}>
-            Contribuer anonymement
-          </label>
+          <input type="checkbox" checked={anonymous} onChange={() => setAnonymous(!anonymous)} id="anonymous" style={{ width: "1rem", height: "1rem" }} />
+          <label htmlFor="anonymous" style={{ color: "#374151" }}>Contribuer anonymement</label>
         </div>
 
+        {/* Champs pour invité uniquement */}
+        {isGuest && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-medium mb-1" style={{ color: "#374151" }}>Nom (reçu)</label>
+              <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Votre nom" />
+              {guestNameError && <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.25rem" }}>{guestNameError}</p>}
+            </div>
+            <div>
+              <label className="block font-medium mb-1" style={{ color: "#374151" }}>Email (reçu)</label>
+              <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)}
+                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="ex: Sylvie@domaine.com" />
+              {guestEmailError && <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.25rem" }}>{guestEmailError}</p>}
+            </div>
+            <div>
+              <label className="block font-medium mb-1" style={{ color: "#374151" }}>Numéro (reçu)</label>
+              <input type="text" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)}
+                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="ex: +228..." />
+              {guestPhoneError && <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.25rem" }}>{guestPhoneError}</p>}
+            </div>
+          </div>
+        )}
+
+        {/* Champ message */}
         <div className="mt-4">
-          <label className="block font-medium mb-1" style={{ color: "#374151" }}>
-            Message (optionnel)
-          </label>
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
+          <label className="block font-medium mb-1" style={{ color: "#374151" }}>Message (optionnel)</label>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Votre message de soutien..."
-            maxLength={200}
-          />
+            placeholder="Votre message de soutien..." maxLength={240} />
           {messageError && <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.25rem" }}>{messageError}</p>}
         </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className={`w-full py-3 text-white font-semibold rounded-md transition ${submitting ? "bg-gray-400" : "bg-primary hover:opacity-90"
-            }`}
-          style={{ marginTop: "1rem" }}
-        >
-          {submitting ? "Traitement..." : "Contribuer"}
-        </button>
+        {/* Moyen de paiement */}
+        <div className="mt-4">
+          <label className="block font-medium mb-2" style={{ color: "#374151" }}>Moyen de paiement</label>
+          <div className="flex gap-4 items-center">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="paymentMethod" value="card" checked={paymentMethod === "card"} onChange={() => setPaymentMethod("card")} />
+              <span>Carte bancaire (Stripe/Flutterwave)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="paymentMethod" value="mobile" checked={paymentMethod === "mobile"} onChange={() => setPaymentMethod("mobile")} />
+              <span>Mobile Money (TMoney / Flooz / Orange)</span>
+            </label>
+          </div>
 
-        {submitError && (
-          <p style={{ color: "#dc2626", textAlign: "center", marginTop: "0.5rem" }}>{submitError}</p>
-        )}
+          {paymentMethod === "mobile" && (
+            <div className="mt-2 flex gap-4">
+              <label className="flex items-center gap-2">
+                <input type="radio" name="mobileOption" value="tmoney" checked={mobileOption === "tmoney"} onChange={() => setMobileOption("tmoney")} />
+                <span>TMoney</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" name="mobileOption" value="flooz" checked={mobileOption === "flooz"} onChange={() => setMobileOption("flooz")} />
+                <span>Flooz</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" name="mobileOption" value="orange" checked={mobileOption === "orange"} onChange={() => setMobileOption("orange")} />
+                <span>Orange</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        <button type="submit" disabled={submitting} className={`w-full py-3 text-white font-semibold rounded-md transition ${submitting ? "bg-gray-400" : "bg-primary hover:opacity-90"}`} style={{ marginTop: "1rem" }}>
+          {submitting ? "Traitement..." : "Valider et payer"}
+        </button>
+        {submitError && <p style={{ color: "#dc2626", textAlign: "center", marginTop: "0.5rem" }}>{submitError}</p>}
       </form>
 
+      {/* Affichage du reçu */}
       {receipt && (
-        <div
-          className="mt-6 rounded shadow"
-          style={{ backgroundColor: "#f0fdf4", borderLeft: "4px solid #4CA260", padding: "1.5rem" }}
-        >
+        <div className="mt-6 rounded shadow" style={{ backgroundColor: "#f0fdf4", borderLeft: "4px solid #4CA260", padding: "1.5rem" }}>
           <h2 className="text-2xl font-bold mb-2">Reçu de paiement</h2>
           <p><strong>Cagnotte :</strong> {receipt.cagnotteTitle}</p>
           <p><strong>Contributeur :</strong> {receipt.userName}</p>
@@ -220,20 +310,13 @@ const ContributePage = () => {
           <p><strong>Référence fournisseur :</strong> {receipt.transaction.providerReference}</p>
           <p><strong>Date :</strong> {new Date(receipt.contribution.createdAt).toLocaleString()}</p>
         </div>
-      )
-      }
+      )}
     </div>
   );
 
-};
+}
+;
+
 
 export default ContributePage;
-
-
-
-
-
-
-
-
 
