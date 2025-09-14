@@ -83,7 +83,7 @@ const EditCagnotte = () => {
       console.log('Données à envoyer pour mise à jour:', updateData);
 
       // Appel API pour mettre à jour la cagnotte
-      const response = await api.put(`/v1/pulls/${id}`, updateData);
+      const response = await api.put(`/pulls/${id}`, updateData);
 
       console.log('Réponse de l\'API:', response.data);
 

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { sendNotification } from "../services/notificationService";
+import { apiFetch } from "../services/api";
 
 
 // Fonction  pour charger depuis localStorage
@@ -72,18 +73,7 @@ export const useCagnotteStore = create((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        set({ loading: false, error: 'Utilisateur non authentifié' });
-        return;
-      }
-
-      const response = await fetch('http://localhost:5000/api/v1/pulls', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiFetch(`${import.meta.env.VITE_API_URL}/pulls`);
 
       if (!response.ok) {
         throw new Error(`Erreur HTTP: ${response.status}`);

@@ -3,6 +3,7 @@ import { FiSettings, FiBell, FiShield, FiHelpCircle, FiHome, FiGrid, FiLogOut, F
 import { useNavigate } from "react-router-dom"; // Importation du hook pour la navigation
 import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
+import { logout } from "../services/auth";
 
 // Composant principal pour la page de profil utilisateur
 const ProfilePage = () => {
@@ -33,7 +34,7 @@ const ProfilePage = () => {
           return;
         }
 
-        const response = await api.get('/v1/auth/me');
+        const response = await api.get('/auth/me');
         const user = response.data;
 
         setUserData({
@@ -172,7 +173,9 @@ const ProfilePage = () => {
             <button className="p-2 rounded-full hover:bg-gray-100" onClick={() => navigate("/landing")}>
               <FiHome variant="primary" />
             </button>
-            
+            <button className="p-2 rounded-full hover:bg-gray-100" onClick={() => navigate("/dashboard")}>
+              <FiGrid variant="primary" />
+              </button>
           </div>
         </div>
       </header>
@@ -210,17 +213,21 @@ const ProfilePage = () => {
                 <span>Sécurité</span>
               </button>
               
-              <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
-                <FiHelpCircle className="text-gray-500" />
-                <span>Aide</span>
-              </button>
               
               <button
                 className="w-full flex items-center space-x-2 p-3 rounded-lg text-red-600 hover:bg-red-50 transition mt-4"
-                onClick={() => {
+                onClick={async () => {
                   if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-                    reset(); // Nettoie complètement le store et localStorage
-                    navigate('/login');
+                    try {
+                      await logout(); // Déconnexion Firebase
+                      reset(); // Nettoie complètement le store et localStorage
+                      navigate('/login');
+                    } catch (error) {
+                      console.error('Erreur lors de la déconnexion:', error);
+                      // Même en cas d'erreur, on nettoie et redirige
+                      reset();
+                      navigate('/login');
+                    }
                   }
                 }}
               >

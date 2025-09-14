@@ -23,6 +23,7 @@ const CreerCagnotte = () => {
   });
   const [preview, setPreview] = useState(null);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateStep = () => {
     const newErrors = {};
@@ -93,11 +94,13 @@ const CreerCagnotte = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     // Vérifier si l'utilisateur est connecté
     const token = localStorage.getItem('token');
     if (!token) {
       alert("Vous devez être connecté pour créer une cagnotte. Veuillez vous connecter d'abord.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -130,7 +133,7 @@ const CreerCagnotte = () => {
       console.log('Données envoyées:', Object.fromEntries(formData));
 
       // Envoi à l'API
-      const response = await api.post('/v1/pulls', formData, {
+      const response = await api.post('/pulls', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -158,6 +161,7 @@ const CreerCagnotte = () => {
         navigate("/dashboard");
       }
 
+      setIsSubmitting(false);
 
     } catch (error) {
       console.error("Erreur détaillée:", error);
@@ -184,6 +188,8 @@ const CreerCagnotte = () => {
       }
 
       alert(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -411,9 +417,14 @@ const CreerCagnotte = () => {
                   </button>
                   <button
                     type="submit"
-                    className="bg-[#4ca260] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#082e11] transition"
+                    disabled={isSubmitting}
+                    className={`font-bold py-3 px-6 rounded-lg transition ${
+                      isSubmitting
+                        ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+                        : "bg-[#4ca260] text-white hover:bg-[#082e11]"
+                    }`}
                   >
-                    🚀 Lancer la cagnotte
+                    {isSubmitting ? "Création en cours..." : "🚀 Lancer la cagnotte"}
                   </button>
                 </div>
               </>

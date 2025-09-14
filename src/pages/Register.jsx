@@ -3,7 +3,7 @@ import vector0 from "../assets/logo.png";
 import illustration from "../assets/illustrations/2_Interaction Fintech Sécurisée_simple_compose.png";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
-import api from "../services/api";
+import { registerWithEmail } from "../services/auth";
 import PhoneInput from "../components/PhoneInput";
 import PasswordInput from "../components/PasswordInput";
 import { useCagnotteStore } from "../stores/cagnotteStore";
@@ -84,34 +84,27 @@ export const Register = () => {
     }
 
     try {
-      const response = await api.post('/v1/auth/register', {
-        name: `${form.nom.trim()} ${form.prenom.trim()}`,
-        email: form.email || null,
-        phone: form.phone || null,
-        password: form.password,
-        notificationType: form.notificationType,
-        defaultCurrency: form.defaultCurrency
-      });
+      // Inscription avec Firebase
+      const displayName = `${form.prenom.trim()} ${form.nom.trim()}`;
+      const { user, idToken } = await registerWithEmail(form.email, form.password, displayName);
 
-      if (response.data.token) {
-        // Stocker le token
-        localStorage.setItem('token', response.data.token);
+      // Stocker le token Firebase dans localStorage
+      localStorage.setItem('token', idToken);
 
-        // ✅ Forcer le rechargement des données du nouvel utilisateur
-        await fetchAllCagnottes();
+      // ✅ Forcer le rechargement des données du nouvel utilisateur
+      await fetchAllCagnottes();
 
-        // Afficher message de succès
-        alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
-        // Rediriger vers le tableau de bord
-        navigate('/dashboard');
-      }
+      // Afficher message de succès
+      alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
+      // Rediriger vers le tableau de bord
+      navigate('/dashboard');
     } catch (error) {
       console.error("Erreur lors de l'inscription:", error);
-      const errorMessage = error.response?.data?.error || "Erreur lors de l'inscription";
-      
+      const errorMessage = error.message || "Erreur lors de l'inscription";
+
       // Messages d'erreur plus clairs
-      if (errorMessage.includes("déjà utilisé")) {
-        alert("Cet email ou ce numéro de téléphone est déjà associé à un compte existant. Veuillez utiliser des informations différentes ou vous connecter.");
+      if (errorMessage.includes("email-already-in-use")) {
+        alert("Cet email est déjà associé à un compte existant. Veuillez utiliser un email différent ou vous connecter.");
       } else {
         alert(errorMessage);
       }

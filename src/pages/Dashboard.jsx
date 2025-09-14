@@ -4,6 +4,7 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
 import { FaArrowLeft, FaHome, FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt } from "react-icons/fa";
+import { logout } from "../services/auth";
 
 
 const Dashboard = () => {
@@ -161,10 +162,19 @@ const Dashboard = () => {
                 Non
               </button>
               <button
-                onClick={() => {
-                  localStorage.removeItem("token");
-                  setShowLogoutConfirm(false);
-                  navigate("/login");
+                onClick={async () => {
+                  try {
+                    await logout(); // Déconnexion Firebase
+                    useCagnotteStore.getState().reset(); // Nettoie le store
+                    setShowLogoutConfirm(false);
+                    navigate("/login");
+                  } catch (error) {
+                    console.error('Erreur lors de la déconnexion:', error);
+                    // Même en cas d'erreur, on nettoie et redirige
+                    useCagnotteStore.getState().reset();
+                    setShowLogoutConfirm(false);
+                    navigate("/login");
+                  }
                 }}
                 className="px-4 py-2 text-white rounded"
                 style={{ backgroundColor: "#4CA260" }}

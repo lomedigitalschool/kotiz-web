@@ -4,6 +4,7 @@ import api from "../services/api";
 import QRCode from "react-qr-code";
 import { colors } from "../theme/colors";
 import { useCagnotteStore } from "../stores/cagnotteStore";
+import { useAuth } from "../hooks/useAuth";
 import { FaFacebook, FaWhatsapp, FaEnvelope } from "react-icons/fa";
 import { FiShare2 } from "react-icons/fi";
 
@@ -20,7 +21,7 @@ const CagnotteDetails = () => {
   const [contributions, setContributions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currentUser } = useCagnotteStore();
+  const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showShareOptions, setShowShareOptions] = useState(false);
@@ -31,7 +32,7 @@ const CagnotteDetails = () => {
         setLoading(true);
         console.log('Chargement de la cagnotte:', id, 'Refresh key:', refreshKey);
 
-        const response = await api.get(`/v1/pulls/${id}`);
+        const response = await api.get(`/pulls/${id}`);
         console.log('Données reçues:', response.data);
         setCagnotte(response.data);
         setContributions(response.data.contributions || []);
@@ -62,10 +63,35 @@ const CagnotteDetails = () => {
   if (error) return <p style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</p>;
   if (!cagnotte) return <p className="text-center mt-20 text-gray-500">Cagnotte introuvable...</p>;
 
-  // accès utilisateur
-  const userId = currentUser?.id;
+  // accès utilisateur - récupérer l'utilisateur depuis l'API
+  const [currentUserData, setCurrentUserData] = useState(null);
+  const [userLoading, setUserLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await api.get('/auth/me');
+          setCurrentUserData(response.data);
+        }
+      } catch (error) {
+        console.error('Erreur récupération utilisateur:', error);
+      } finally {
+        setUserLoading(false);
+      }
+    };
+
+    if (cagnotte) {
+      fetchCurrentUser();
+    }
+  }, [cagnotte]);
+
+  if (userLoading) return <p className="text-center mt-[80px] text-gray-500">Vérification des accès...</p>;
+
+  const userId = currentUserData?.id;
   const canAccess = cagnotte.type === "public" || cagnotte.userId === userId;
-  if (!canAccess) return <p className="text-center mt-16 text-red-500">Accès restreint</p>;
+  if (!canAccess) return <p className="text-center mt-16 text-red-500">Accès restreint - Cette cagnotte est privée</p>;
 
   const progress = Math.min(((cagnotte.currentAmount || 0) / cagnotte.goalAmount) * 100, 100);
 
@@ -94,10 +120,10 @@ const CagnotteDetails = () => {
     <div className="p-5 font-roboto max-w-6xl mx-auto">
       {/* Bouton Retour */}
       <button
-        onClick={() => navigate(-1)}
+        onClick={() => navigate("/dashboard")}
         className="mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition"
       >
-        ← Retour
+        ← Retour au Dashboard
       </button>
       <div className="bg-white rounded-[18px] shadow-lg overflow-hidden">
         <div>
@@ -170,6 +196,15 @@ const CagnotteDetails = () => {
               >
                 Voir les contributeurs
               </button>
+              {currentUserData && currentUserData.id === cagnotte.userId && (
+                <button
+                  onClick={() => navigate(`/edit-cagnotte/${cagnotte.id}`)}
+                  className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                  style={{ backgroundColor: colors.secondary }}
+                >
+                  Modifier
+                </button>
+              )}
             </div>
           </div>
 

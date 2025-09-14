@@ -5,7 +5,7 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 
 const ContributePage = () => {
   const { id } = useParams();
-  const { addContribution } = useCagnotteStore();
+  const { addContribution, fetchAllCagnottes, fetchUserContributions } = useCagnotteStore();
 
   const [cagnotte, setCagnotte] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ const ContributePage = () => {
     const fetchCagnotteData = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/v1/pulls/${id}`);
+        const response = await api.get(`/pulls/${id}`);
         setCagnotte(response.data);
         setError(null);
       } catch (err) {
@@ -101,7 +101,7 @@ const ContributePage = () => {
         };
 
         console.log("Payload invité:", guestPayload);
-        return (await api.post(`/v1/public/contributions/anonymous/${id}`, guestPayload)).data;
+        return (await api.post(`/public/contributions/anonymous/${id}`, guestPayload)).data;
       } else {
         // Contribution utilisateur connecté
         const userEmail = localStorage.getItem("userEmail") || "user@example.com";
@@ -119,7 +119,7 @@ const ContributePage = () => {
         };
 
         console.log("Payload utilisateur connecté:", userPayload);
-        return (await api.post(`/v1/contributions`, userPayload)).data;
+        return (await api.post(`/contributions`, userPayload)).data;
       }
     } catch (err) {
       console.error("Erreur contribution:", err.response?.data || err.message);
@@ -149,6 +149,16 @@ const ContributePage = () => {
         ...newContribution,
         user: anonymous ? "Anonyme" : isGuest ? guestName : "Utilisateur connecté"
       });
+
+      // Rafraîchir les données depuis le serveur pour synchronisation
+      try {
+        await fetchAllCagnottes();
+        if (!isGuest) {
+          await fetchUserContributions();
+        }
+      } catch (refreshError) {
+        console.error('Erreur lors du rafraîchissement des données:', refreshError);
+      }
 
       setReceipt({
         contribution: newContribution,

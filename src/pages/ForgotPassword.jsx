@@ -1,26 +1,42 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
-import api from "../services/api";
+import { auth } from "../config/firebase";
+import { sendPasswordResetEmail } from "firebase/auth";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setMessage("");
+    setError("");
 
-    // Donnees mocks
-   // console.log("Envoi email de réinitialisation pour :", email);
-    //setMessage("✅ Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.");
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setMessage("✅ Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.");
+      setTimeout(() => navigate("/login"), 3000);
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de l'email de réinitialisation:", error);
+      let errorMessage = "Erreur lors de l'envoi de l'email";
 
-    //  appel API 
-    
-    api.post("/auth/forgot-password", { email })
-      .then(res => setMessage(res.data.message))
-      .catch(err => setMessage(err.response?.data?.error || "Erreur"));
-    
+      if (error.code === "auth/user-not-found") {
+        errorMessage = "Aucun compte trouvé avec cette adresse email";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Adresse email invalide";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Trop de tentatives. Veuillez réessayer plus tard";
+      }
+
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -45,21 +61,40 @@ const ForgotPassword = () => {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="email"
-            placeholder="Email / Numéro"
+            placeholder="Adresse email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:outline-none bg-[#4CA26033] placeholder-gray-700"
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4CA260] focus:border-transparent bg-[#4CA26033] placeholder-gray-700 transition-colors"
+            disabled={isLoading}
           />
           <button
             type="submit"
-            className="bg-[#4CA260] text-white py-3 rounded-lg font-bold hover:bg-[#3B8E49] transition"
+            disabled={isLoading}
+            className="bg-[#4CA260] text-white py-3 rounded-lg font-bold hover:bg-[#3B8E49] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Envoyer le lien
+            {isLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Envoi en cours...
+              </>
+            ) : (
+              "Envoyer le lien"
+            )}
           </button>
         </form>
 
-        {message && <p className="mt-4 text-[#4CA260]">{message}</p>}
+        {message && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-800 text-sm">{message}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800 text-sm">{error}</p>
+          </div>
+        )}
       </div>
     </div>
   );

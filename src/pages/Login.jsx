@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import vector0 from "../assets/logo.png";
 import { FaArrowLeft } from "react-icons/fa";
-import api from "../services/api";
+import { loginWithEmail } from "../services/auth";
 import PhoneInput from "../components/PhoneInput";
 import PasswordInput from "../components/PasswordInput";
 import { useCagnotteStore } from "../stores/cagnotteStore";
@@ -43,26 +43,24 @@ export const Login = () => {
     setErrors({});
 
     try {
-      const response = await api.post('/v1/auth/login', {
-        identifier: form.identifier, // Email ou téléphone
-        password: form.password
-      });
+      // Utiliser Firebase Auth pour se connecter
+      const { user, idToken } = await loginWithEmail(form.identifier, form.password);
 
-      if (response.data.token) {
-        // Stocker le token
-        localStorage.setItem('token', response.data.token);
-        if (form.remember) {
-          localStorage.setItem('rememberMe', 'true');
-        }
+      // Stocker le token Firebase dans localStorage
+      localStorage.setItem('token', idToken);
 
-        // ✅ Forcer le rechargement des données du nouvel utilisateur
-        await fetchAllCagnottes();
-
-        // Rediriger vers le tableau de bord
-        navigate('/dashboard');
+      // Stocker des informations dans localStorage si nécessaire
+      if (form.remember) {
+        localStorage.setItem('rememberMe', 'true');
       }
+
+      // ✅ Forcer le rechargement des données du nouvel utilisateur
+      await fetchAllCagnottes();
+
+      // Rediriger vers le tableau de bord
+      navigate('/dashboard');
     } catch (error) {
-      alert(error.response?.data?.error || "Identifiants incorrects");
+      alert(error.message || "Identifiants incorrects");
     }
   };
 

@@ -4,3 +4,8 @@ build/
 .env.local
 npm-debug.log*
 .DS_Store
+package-lock.json
+package.json
+OTPTestPage.jsx
+authDebug.js
+otpTest.js

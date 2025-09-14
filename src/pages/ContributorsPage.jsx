@@ -45,7 +45,7 @@ const ContributorsPage = () => {
 
       {/* Bouton retour */}
       <button
-        onClick={() => navigate("/dashboard")}
+        onClick={() => navigate(`/cagnottes/${id}`)}
         className="absolute top-4 left-4 p-2 rounded-full hover:bg-gray-200 transition"
       >
         <FaArrowLeft size={20} className="text-gray-700" />
