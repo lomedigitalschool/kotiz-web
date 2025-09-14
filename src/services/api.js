@@ -68,11 +68,15 @@ api.interceptors.response.use(
 
 // Wrapper pour fetch avec token automatique et gestion d'expiration
 export async function apiFetch(url, options = {}) {
+  console.log('🌐 apiFetch appelé pour:', url);
+
   // Vérifier d'abord si Firebase considère l'utilisateur comme connecté
   const isFirebaseAuthenticated = auth.currentUser !== null;
+  console.log('🔍 État Firebase:', isFirebaseAuthenticated ? 'Connecté' : 'Non connecté');
 
   // Obtenir un token valide (avec cache et refresh automatique)
   const token = await getValidToken();
+  console.log('🎫 Token obtenu:', token ? 'Oui' : 'Non');
 
   // Si pas de token mais Firebase dit que l'utilisateur est connecté,
   // attendre un peu que Firebase mette à jour le token
@@ -92,6 +96,7 @@ export async function apiFetch(url, options = {}) {
   }
 
   const finalToken = localStorage.getItem('token') || token;
+  console.log('🔑 Token final disponible:', finalToken ? 'Oui' : 'Non');
 
   const defaultHeaders = {
     'Content-Type': 'application/json',
@@ -99,10 +104,18 @@ export async function apiFetch(url, options = {}) {
     ...(options.headers || {})
   };
 
+  console.log('📤 Envoi requête avec headers:', {
+    url,
+    hasAuth: !!finalToken,
+    method: options.method || 'GET'
+  });
+
   const response = await fetch(url, {
     ...options,
     headers: defaultHeaders
   });
+
+  console.log('📥 Réponse reçue:', response.status, response.statusText);
 
   // Gestion réactive des tokens expirés (au cas où)
   if (response.status === 401) {
@@ -139,6 +152,17 @@ export async function apiFetch(url, options = {}) {
   }
 
   return response;
+}
+
+// Fonction spécifique pour mettre à jour le numéro de téléphone
+export async function updateUserPhone(phoneNumber) {
+  try {
+    const response = await api.post('/auth/update-phone', { phone: phoneNumber });
+    return response.data;
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du numéro de téléphone:', error);
+    throw error;
+  }
 }
 
 export default api;

@@ -1,17 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import vector0 from "../assets/logo.png";
 import illustration from "../assets/illustrations/2_Interaction Fintech Sécurisée_simple_compose.png";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
-import { registerWithEmail } from "../services/auth";
+import { useAuthStore } from "../stores/authStore";
+import { useCagnotteStore } from "../stores/cagnotteStore";
 import PhoneInput from "../components/PhoneInput";
 import PasswordInput from "../components/PasswordInput";
-import { useCagnotteStore } from "../stores/cagnotteStore";
 
 export const Register = () => {
   const navigate = useNavigate();
   const { fetchAllCagnottes } = useCagnotteStore();
+  const {
+    registerWithEmail,
+    registerWithPhone,
+    confirmPhoneRegistration,
+    isLoading,
+    error,
+    otpStep,
+    clearError
+  } = useAuthStore();
+
   const [step, setStep] = useState(1);
+  const [registrationType, setRegistrationType] = useState('email'); // 'email' ou 'phone'
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
@@ -19,10 +30,26 @@ export const Register = () => {
     phone: "",
     password: "",
     confirmPassword: "",
+    otpCode: "",
     notificationType: "email",
     defaultCurrency: "XOF",
   });
   const [errors, setErrors] = useState({});
+
+  // Initialiser reCAPTCHA pour l'inscription téléphone
+  useEffect(() => {
+    if (registrationType === 'phone' && !window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier = new RecaptchaVerifier('recaptcha-container', {
+          size: 'invisible',
+          callback: () => console.log('✅ reCAPTCHA réussi'),
+          'expired-callback': () => console.warn('⚠️ reCAPTCHA expiré')
+        });
+      } catch (error) {
+        console.error('❌ Erreur initialisation reCAPTCHA:', error);
+      }
+    }
+  }, [registrationType]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -59,21 +86,10 @@ export const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation des champs requis
     if (!form.nom || !form.prenom) {
       alert("Le nom et le prénom sont requis");
-      return;
-    }
-
-    if (!form.password) {
-      alert("Le mot de passe est requis");
-      return;
-    }
-
-    // Validation des mots de passe
-    if (form.password !== form.confirmPassword) {
-      alert("Les mots de passe ne correspondent pas");
       return;
     }
 
@@ -84,12 +100,60 @@ export const Register = () => {
     }
 
     try {
-      // Inscription avec Firebase
       const displayName = `${form.prenom.trim()} ${form.nom.trim()}`;
-      const { user, idToken } = await registerWithEmail(form.email, form.password, displayName);
+
+      let result;
+
+      // ✅ Vérifier le type d'inscription et appeler la bonne méthode
+      if (form.email && form.email.trim()) {
+        // Inscription avec email et mot de passe
+        if (!form.password) {
+          alert("Le mot de passe est requis pour l'inscription par email");
+          return;
+        }
+
+        if (form.password !== form.confirmPassword) {
+          alert("Les mots de passe ne correspondent pas");
+          return;
+        }
+
+        console.log('📧 Inscription avec email:', form.email);
+        result = await registerWithEmail(form.email, form.password, displayName, form.phone);
+
+      } else if (form.phone && form.phone.trim()) {
+        // Inscription avec téléphone OTP
+        console.log('📱 Inscription avec téléphone:', form.phone);
+        result = await registerWithPhone(form.phone, displayName);
+        // Pour le téléphone, on passe à l'étape OTP
+        setStep(3);
+        return;
+      } else {
+        throw new Error("Veuillez renseigner au moins un email ou un numéro de téléphone");
+      }
+
+      // Traitement après inscription réussie (pour email uniquement)
+      const { user } = result;
+
+      // Obtenir le token Firebase mis à jour
+      const idToken = await user.getIdToken();
 
       // Stocker le token Firebase dans localStorage
       localStorage.setItem('token', idToken);
+      localStorage.setItem('isNewUser', 'true'); // Marquer comme nouvel utilisateur
+
+      // ✅ Sauvegarder le numéro de téléphone en base de données si fourni
+      if (form.phone && form.phone.trim()) {
+        try {
+          await updateUserPhone(form.phone.trim());
+          console.log('Numéro de téléphone sauvegardé:', form.phone);
+        } catch (phoneError) {
+          console.warn('Erreur lors de la sauvegarde du numéro de téléphone:', phoneError);
+          // Ne pas bloquer l'inscription si la sauvegarde du téléphone échoue
+        }
+      }
+
+      // ✅ Nettoyer complètement le store avant de charger les nouvelles données
+      useCagnotteStore.getState().reset();
 
       // ✅ Forcer le rechargement des données du nouvel utilisateur
       await fetchAllCagnottes();
@@ -98,6 +162,7 @@ export const Register = () => {
       alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
       // Rediriger vers le tableau de bord
       navigate('/dashboard');
+
     } catch (error) {
       console.error("Erreur lors de l'inscription:", error);
       const errorMessage = error.message || "Erreur lors de l'inscription";
@@ -105,6 +170,12 @@ export const Register = () => {
       // Messages d'erreur plus clairs
       if (errorMessage.includes("email-already-in-use")) {
         alert("Cet email est déjà associé à un compte existant. Veuillez utiliser un email différent ou vous connecter.");
+      } else if (errorMessage.includes("auth/missing-email")) {
+        alert("Erreur technique : email manquant. Veuillez réessayer.");
+      } else if (errorMessage.includes("auth/invalid-email")) {
+        alert("Format d'email invalide. Veuillez vérifier votre email.");
+      } else if (errorMessage.includes("auth/weak-password")) {
+        alert("Le mot de passe est trop faible. Utilisez au moins 6 caractères.");
       } else {
         alert(errorMessage);
       }

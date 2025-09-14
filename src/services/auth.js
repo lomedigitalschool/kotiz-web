@@ -1,6 +1,6 @@
 // Service d'authentification
 import { auth } from '../config/firebase';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth';
 
 // Fonction pour se connecter avec email et mot de passe
 export const loginWithEmail = async (email, password) => {
@@ -15,15 +15,36 @@ export const loginWithEmail = async (email, password) => {
 };
 
 // Fonction pour s'inscrire
-export const registerWithEmail = async (email, password, displayName) => {
+export const registerWithEmail = async (email, password, displayName, phoneNumber = null) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
+
+    // Mettre à jour le profil avec le displayName
+    const profileUpdates = {};
     if (displayName) {
-      await updateProfile(user, { displayName });
+      profileUpdates.displayName = displayName;
     }
+
+    // Note: Firebase Auth ne permet pas de définir le numéro de téléphone via updateProfile
+    // Le numéro de téléphone doit être défini lors de la connexion avec numéro de téléphone
+    // Nous le stockerons dans la base de données via le backend
+
+    if (Object.keys(profileUpdates).length > 0) {
+      await updateProfile(user, profileUpdates);
+    }
+
+    // Envoyer automatiquement l'email de vérification
+    try {
+      await sendEmailVerification(user);
+      console.log('Email de vérification envoyé à:', email);
+    } catch (verificationError) {
+      console.warn('Erreur lors de l\'envoi de l\'email de vérification:', verificationError.message);
+      // Ne pas bloquer l'inscription si l'email de vérification échoue
+    }
+
     // Le token sera automatiquement sauvegardé par onAuthStateChange
-    return { user };
+    return { user, phoneNumber }; // Retourner aussi le numéro de téléphone pour le backend
   } catch (error) {
     throw new Error(error.message);
   }
@@ -33,6 +54,8 @@ export const registerWithEmail = async (email, password, displayName) => {
 export const logout = async () => {
   try {
     await signOut(auth);
+    // Nettoyer les flags locaux
+    localStorage.removeItem('isNewUser');
   } catch (error) {
     throw new Error(error.message);
   }
@@ -118,4 +141,46 @@ export const getValidToken = async () => {
   }
 
   return cachedToken;
+};
+
+// Fonction pour renvoyer l'email de vérification
+export const resendEmailVerification = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('Aucun utilisateur connecté');
+    }
+
+    if (user.emailVerified) {
+      throw new Error('L\'email est déjà vérifié');
+    }
+
+    await sendEmailVerification(user);
+    console.log('Email de vérification renvoyé à:', user.email);
+    return { success: true, message: 'Email de vérification envoyé' };
+  } catch (error) {
+    console.error('Erreur lors du renvoi de l\'email de vérification:', error);
+    throw new Error(error.message);
+  }
+};
+
+// Fonction pour vérifier si l'email de l'utilisateur actuel est vérifié
+export const isEmailVerified = () => {
+  const user = auth.currentUser;
+  return user ? user.emailVerified : false;
+};
+
+// Fonction pour recharger l'utilisateur actuel (utile après vérification d'email)
+export const reloadCurrentUser = async () => {
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      await user.reload();
+      return user;
+    }
+    return null;
+  } catch (error) {
+    console.error('Erreur lors du rechargement de l\'utilisateur:', error);
+    throw new Error(error.message);
+  }
 };

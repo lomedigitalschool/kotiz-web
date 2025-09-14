@@ -20,6 +20,7 @@ import Transactions from "./pages/Transactions";
 import OTPTestPage from "./pages/OTPTestPage";
 import { useAuth } from "./hooks/useAuth";
 import AuthGuard from "./components/AuthGuard";
+import Breadcrumb from "./components/Breadcrumb";
 
 // Importer les utilitaires de debug en développement
 if (process.env.NODE_ENV === 'development') {
@@ -67,7 +68,9 @@ export default function App() {
   console.log('🔄 État d\'authentification déterminé:', isAuthenticated ? 'Connecté' : 'Non connecté');
 
   return (
-    <Routes>
+    <>
+      <Breadcrumb />
+      <Routes>
       <Route path="/" element={<Navigate to="/landing" />} />
       <Route path="/landing" element={<LandingPage />} />
 
@@ -143,5 +146,6 @@ export default function App() {
       <Route path="/otp-test" element={<OTPTestPage />} />
 
     </Routes>
+   </>
   );
 }

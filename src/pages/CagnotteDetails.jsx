@@ -25,6 +25,8 @@ const CagnotteDetails = () => {
   const [page, setPage] = useState(1);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showShareOptions, setShowShareOptions] = useState(false);
+  const [currentUserData, setCurrentUserData] = useState(null);
+  const [userLoading, setUserLoading] = useState(true);
 
   useEffect(() => {
     const fetchCagnotteDetails = async () => {
@@ -32,15 +34,27 @@ const CagnotteDetails = () => {
         setLoading(true);
         console.log('Chargement de la cagnotte:', id, 'Refresh key:', refreshKey);
 
+        // Utiliser l'endpoint unifié qui gère l'accès selon l'authentification
         const response = await api.get(`/pulls/${id}`);
-        console.log('Données reçues:', response.data);
-        setCagnotte(response.data);
-        setContributions(response.data.contributions || []);
+        console.log('Cagnotte chargée:', response.data);
+
+        // Traiter les données reçues
+        const cagnotteData = response.data.data || response.data;
+        setCagnotte(cagnotteData);
+        setContributions(cagnotteData.contributions || cagnotteData.recentContributions || []);
 
         setError(null);
       } catch (err) {
         console.error('Erreur lors du chargement:', err);
-        setError(err.response?.data?.message || "Erreur lors du chargement de la cagnotte");
+
+        // Gestion spécifique des erreurs d'accès
+        if (err.response?.status === 403) {
+          setError("Accès refusé - Cette cagnotte est privée. Connectez-vous avec le compte propriétaire pour y accéder.");
+        } else if (err.response?.status === 404) {
+          setError("Cagnotte non trouvée");
+        } else {
+          setError(err.response?.data?.message || "Erreur lors du chargement de la cagnotte");
+        }
       } finally {
         setLoading(false);
       }
@@ -48,7 +62,6 @@ const CagnotteDetails = () => {
 
     fetchCagnotteDetails();
   }, [id, refreshKey]);
-
 
   // Détecter si on vient d'une modification
   useEffect(() => {
@@ -59,14 +72,7 @@ const CagnotteDetails = () => {
     }
   }, [location.state]);
 
-  if (loading) return <p className="text-center mt-[80px] text-gray-500">Chargement...</p>;
-  if (error) return <p style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</p>;
-  if (!cagnotte) return <p className="text-center mt-20 text-gray-500">Cagnotte introuvable...</p>;
-
   // accès utilisateur - récupérer l'utilisateur depuis l'API
-  const [currentUserData, setCurrentUserData] = useState(null);
-  const [userLoading, setUserLoading] = useState(true);
-
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
@@ -87,11 +93,16 @@ const CagnotteDetails = () => {
     }
   }, [cagnotte]);
 
+  if (loading) return <p className="text-center mt-[80px] text-gray-500">Chargement...</p>;
+  if (error) return <p style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</p>;
+  if (!cagnotte) return <p className="text-center mt-20 text-gray-500">Cagnotte introuvable...</p>;
+
   if (userLoading) return <p className="text-center mt-[80px] text-gray-500">Vérification des accès...</p>;
 
   const userId = currentUserData?.id;
-  const canAccess = cagnotte.type === "public" || cagnotte.userId === userId;
-  if (!canAccess) return <p className="text-center mt-16 text-red-500">Accès restreint - Cette cagnotte est privée</p>;
+  // Le backend contrôle déjà l'accès, donc si on arrive ici c'est qu'on a accès
+  // Mais on peut utiliser isOwner pour afficher des informations supplémentaires
+  const isOwner = cagnotte.isOwner || (cagnotte.userId === userId) || (cagnotte.owner?.id === userId);
 
   const progress = Math.min(((cagnotte.currentAmount || 0) / cagnotte.goalAmount) * 100, 100);
 
@@ -168,11 +179,14 @@ const CagnotteDetails = () => {
 
                 {" | "}
 
-                {cagnotte.type
-                  ? cagnotte.type[0].toUpperCase() + cagnotte.type.slice(1)
-                  : "Inconnu"}
+                {cagnotte.type === "private" ? "🔒 Privé" : "🌍 Public"}
               </span>
 
+              {cagnotte.type === "private" && !isOwner && (
+                <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-800 text-sm font-medium">
+                  👁️ Accès limité
+                </span>
+              )}
             </div>
 
             <div className="flex gap-[10px]">
@@ -196,7 +210,7 @@ const CagnotteDetails = () => {
               >
                 Voir les contributeurs
               </button>
-              {currentUserData && currentUserData.id === cagnotte.userId && (
+              {currentUserData && isOwner && (
                 <button
                   onClick={() => navigate(`/edit-cagnotte/${cagnotte.id}`)}
                   className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
@@ -210,17 +224,26 @@ const CagnotteDetails = () => {
 
           {/* Barre de progression */}
           <div style={{ marginTop: 10 }}>
-            <div className="w-full bg-gray-200 rounded-full h-5">
-              <div
-                className="h-5 rounded-full transition-all duration-500"
-                style={{
-                  width: `${progress}%`,
-                  backgroundColor: colors.primary,
-                }}
-              />
-            </div>
+            {cagnotte.type === "private" && !isOwner ? (
+              <div className="w-full bg-gray-200 rounded-full h-5 opacity-50">
+                <div
+                  className="h-5 rounded-full bg-gray-400"
+                  style={{ width: '30%' }}
+                />
+              </div>
+            ) : (
+              <div className="w-full bg-gray-200 rounded-full h-5">
+                <div
+                  className="h-5 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${progress}%`,
+                    backgroundColor: colors.primary,
+                  }}
+                />
+              </div>
+            )}
             <p className="text-right text-gray-700 font-semibold mt-[4px]">
-              {progress.toFixed(1)}%
+              {cagnotte.type === "private" && !isOwner ? "Progression masquée" : `${progress.toFixed(1)}%`}
             </p>
           </div>
 
@@ -235,22 +258,27 @@ const CagnotteDetails = () => {
                 />
               )}
               <span>
-                <strong>Créateur :</strong> {cagnotte.creator?.name || cagnotte.owner?.name || "Utilisateur"}
+                <strong>Créateur :</strong> {cagnotte.owner?.name || cagnotte.creator?.name || "Utilisateur"}
               </span>
             </div>
             <p><strong>Date création :</strong> {creationDate.toLocaleDateString()}</p>
             <p><strong>Jours écoulés :</strong> {daysElapsed} jours</p>
             <p><strong>Date limite :</strong> {cagnotte.deadline ? new Date(cagnotte.deadline).toLocaleDateString() : 'Aucune limite'}</p>
-            <p><strong>Contributeurs :</strong> {nbContribs}</p>
-            <p><strong>Don moyen :</strong> {avgDonation.toFixed(2)} {cagnotte.currency}</p>
-            <p><strong>Montant restant :</strong> {remain.toLocaleString()} {cagnotte.currency}</p>
-            <p><strong>Montant collecté :</strong> {(cagnotte.currentAmount || 0).toLocaleString()} {cagnotte.currency}</p>
+            <p><strong>Contributeurs :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : nbContribs}</p>
+            <p><strong>Don moyen :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : `${avgDonation.toFixed(2)} ${cagnotte.currency}`}</p>
+            <p><strong>Montant restant :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : `${remain.toLocaleString()} ${cagnotte.currency}`}</p>
+            <p><strong>Montant collecté :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : `${(cagnotte.currentAmount || 0).toLocaleString()} ${cagnotte.currency}`}</p>
           </div>
 
           {/* Description */}
           <div>
             <h2 className="text-2xl font-semibold mb-2 border-b pb-1">Description</h2>
-            <p style={{ color: "#4b5563" }}>{cagnotte.description}</p>
+            <p style={{ color: "#4b5563" }}>
+              {cagnotte.type === "private" && !isOwner
+                ? "Description disponible pour les propriétaires uniquement"
+                : cagnotte.description
+              }
+            </p>
           </div>
 
           {/* Contributeurs */}
@@ -258,6 +286,16 @@ const CagnotteDetails = () => {
             <h2 className="text-2xl font-semibold mb-2 border-b pb-1">Contributeurs</h2>
             {allContribs.length === 0 ? (
               <p className="text-gray-500">Aucun contributeur pour le moment.</p>
+            ) : cagnotte.type === "private" && !isOwner ? (
+              <div className="bg-gray-50 rounded-xl p-4 shadow-inner">
+                <p className="text-gray-600">
+                  🔒 Liste des contributeurs masquée pour les cagnottes privées.
+                  Seuls les propriétaires peuvent voir les détails complets.
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Nombre total de contributeurs: {allContribs.length}
+                </p>
+              </div>
             ) : (
               <div className="bg-gray-50 rounded-xl p-4 shadow-inner space-y-3">
                 {currentList.map((c) => (

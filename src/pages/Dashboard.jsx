@@ -5,11 +5,12 @@ import { colors } from "../theme/colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
 import { FaArrowLeft, FaHome, FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt } from "react-icons/fa";
 import { logout } from "../services/auth";
+import EmailVerificationBanner from "../components/EmailVerificationBanner";
 
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { cagnottes, fetchAllCagnottes, contributions, fetchUserContributions, loading, error, deleteCagnotte } = useCagnotteStore();
+  const { cagnottes, fetchUserCagnottes, contributions, fetchUserContributions, loading, error, deleteCagnotte } = useCagnotteStore();
   const [userStats, setUserStats] = useState({});
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -17,20 +18,32 @@ const Dashboard = () => {
     // ✅ Nettoyer les données mockées restantes au premier chargement
     useCagnotteStore.getState().cleanMockData();
 
-    // ✅ Re-fetch toujours quand le composant se monte ou que le token change
+    // ✅ Vérifier si c'est un nouvel utilisateur (token fraîchement créé)
     const token = localStorage.getItem('token');
+    const isNewUser = localStorage.getItem('isNewUser') === 'true';
+
     if (token) {
-      fetchAllCagnottes();
+      // Si c'est un nouvel utilisateur, nettoyer complètement le store avant de charger
+      if (isNewUser) {
+        console.log('🆕 Nouvel utilisateur détecté, nettoyage complet du store');
+        useCagnotteStore.getState().reset();
+        localStorage.removeItem('isNewUser'); // Marquer comme traité
+      }
+
+      fetchUserCagnottes(); // Utilise la fonction qui récupère seulement les cagnottes de l'utilisateur
       fetchUserContributions();
     }
 
-    const local = JSON.parse(localStorage.getItem("localCagnottes") || "[]");
-    if (local.length) {
-      const current = useCagnotteStore.getState().cagnottes;
-      const merged = [...current, ...local.filter(l => !current.find(c => c.id === l.id))];
-      useCagnotteStore.getState().setCagnottes(merged);
+    // ⚠️ Éviter de fusionner les localCagnottes pour les nouveaux utilisateurs
+    if (!isNewUser) {
+      const local = JSON.parse(localStorage.getItem("localCagnottes") || "[]");
+      if (local.length) {
+        const current = useCagnotteStore.getState().cagnottes;
+        const merged = [...current, ...local.filter(l => !current.find(c => c.id === l.id))];
+        useCagnotteStore.getState().setCagnottes(merged);
+      }
     }
-  }, [fetchAllCagnottes, fetchUserContributions]);
+  }, [fetchUserCagnottes, fetchUserContributions]);
 
   // Calculer les statistiques utilisateur
   useEffect(() => {
@@ -166,12 +179,14 @@ const Dashboard = () => {
                   try {
                     await logout(); // Déconnexion Firebase
                     useCagnotteStore.getState().reset(); // Nettoie le store
+                    localStorage.removeItem('isNewUser'); // Supprimer le flag nouvel utilisateur
                     setShowLogoutConfirm(false);
                     navigate("/login");
                   } catch (error) {
                     console.error('Erreur lors de la déconnexion:', error);
                     // Même en cas d'erreur, on nettoie et redirige
                     useCagnotteStore.getState().reset();
+                    localStorage.removeItem('isNewUser');
                     setShowLogoutConfirm(false);
                     navigate("/login");
                   }
@@ -187,6 +202,9 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Bannière de vérification email */}
+      <EmailVerificationBanner />
 
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

@@ -26,8 +26,15 @@ export const useCagnotteStore = create((set, get) => ({
   // fonction de nettoyage des données mockées
   cleanMockData: () => {
     try {
+      console.log('🧹 [CagnotteStore] Nettoyage des données mockées');
+
       const contributions = loadFromStorage("contributions", []);
       const cagnottes = loadFromStorage("cagnottes", []);
+
+      console.log('📊 [CagnotteStore] Données avant nettoyage:', {
+        contributionsCount: contributions.length,
+        cagnottesCount: cagnottes.length
+      });
 
       // Supprimer les contributions mockées (avec "Sylvie" ou données invalides)
       const cleanContributions = contributions.filter(c =>
@@ -53,9 +60,12 @@ export const useCagnotteStore = create((set, get) => ({
         cagnottes: cleanCagnottes
       });
 
-      console.log('Données mockées nettoyées du localStorage');
+      console.log('✅ [CagnotteStore] Données mockées nettoyées:', {
+        cleanContributionsCount: cleanContributions.length,
+        cleanCagnottesCount: cleanCagnottes.length
+      });
     } catch (error) {
-      console.error('Erreur lors du nettoyage:', error);
+      console.error('❌ [CagnotteStore] Erreur lors du nettoyage:', error);
     }
   },
 
@@ -68,8 +78,53 @@ export const useCagnotteStore = create((set, get) => ({
     localStorage.setItem("cagnottes", JSON.stringify(unique));
   },
 
-  // récupération toutes cagnottes
+  // récupération toutes cagnottes (pour la page explorer - toutes les cagnottes)
   fetchAllCagnottes: async () => {
+    set({ loading: true, error: null });
+
+    try {
+      // Essayer d'abord de récupérer toutes les cagnottes avec authentification
+      let response;
+      try {
+        response = await apiFetch(`${import.meta.env.VITE_API_URL}/pulls/all`);
+        console.log('Toutes les cagnottes récupérées avec authentification');
+      } catch (authError) {
+        console.log('Authentification requise, récupération des cagnottes publiques seulement');
+        // Si pas authentifié, récupérer seulement les publiques
+        response = await apiFetch(`${import.meta.env.VITE_API_URL}/pulls/public`);
+        console.log('Cagnottes publiques récupérées (sans authentification)');
+      }
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Cagnottes récupérées:', result);
+
+      // Extraire les données du résultat (car l'API retourne un objet avec data)
+      const data = result.data || result;
+      const processedData = Array.isArray(data) ? data.map(c => ({
+        ...c,
+        currentAmount: parseFloat(c.currentAmount) || 0,
+        goalAmount: parseFloat(c.goalAmount) || 0,
+        collectedAmount: parseFloat(c.currentAmount) || 0, // Pour la compatibilité
+        // Marquer si c'est une cagnotte publique ou privée
+        isAccessible: c.type === 'public' || c.userId === undefined // userId undefined = publique
+      })) : [];
+
+      set({ cagnottes: processedData, loading: false });
+      localStorage.setItem("cagnottes", JSON.stringify(processedData));
+    } catch (error) {
+      console.error('Erreur lors de la récupération des cagnottes:', error);
+      // Fallback vers localStorage en cas d'erreur
+      const stored = loadFromStorage("cagnottes", []);
+      set({ cagnottes: stored, loading: false, error: error.message });
+    }
+  },
+
+  // récupération cagnottes de l'utilisateur connecté (pour le dashboard)
+  fetchUserCagnottes: async () => {
     set({ loading: true, error: null });
 
     try {
@@ -80,7 +135,7 @@ export const useCagnotteStore = create((set, get) => ({
       }
 
       const data = await response.json();
-      console.log('Cagnottes récupérées:', data);
+      console.log('Cagnottes utilisateur récupérées:', data);
 
       // S'assurer que chaque cagnotte a les bonnes propriétés
       const processedData = Array.isArray(data) ? data.map(c => ({
@@ -93,7 +148,7 @@ export const useCagnotteStore = create((set, get) => ({
       set({ cagnottes: processedData, loading: false });
       localStorage.setItem("cagnottes", JSON.stringify(processedData));
     } catch (error) {
-      console.error('Erreur lors de la récupération des cagnottes:', error);
+      console.error('Erreur lors de la récupération des cagnottes utilisateur:', error);
       // Fallback vers localStorage en cas d'erreur
       const stored = loadFromStorage("cagnottes", []);
       set({ cagnottes: stored, loading: false, error: error.message });
@@ -223,43 +278,64 @@ export const useCagnotteStore = create((set, get) => ({
         }
       ];
 
-      const updatedCagnotte = {
+      // Mettre à jour la cagnotte courante si elle correspond
+      const updatedCagnotte = state.cagnotte?.id === contribution.cagnotteId ? {
         ...state.cagnotte,
         currentAmount: (parseFloat(state.cagnotte?.currentAmount) || 0) + parseFloat(contribution.amount),
         contributors: [...(state.cagnotte?.contributors || []), contribution.user || "Anonyme"],
-      };
+      } : state.cagnotte;
 
-      const updatedCagnottes = state.cagnottes.map(c =>
-        c.id === updatedCagnotte.id ? updatedCagnotte : c
-      );
-
-      sendNotification({
-        userId: cagnotte.creatorId || 1,
-        type: "newContribution",
-        data: {
-          amount: contribution.amount,
-          cagnotteTitle: cagnotte.title,
-          user: contribution.user || "Anonyme",
-          message: contribution.message || "",
+      // Mettre à jour la cagnotte dans la liste principale (pour Explorer)
+      const updatedCagnottes = state.cagnottes.map(c => {
+        if (c.id === contribution.cagnotteId) {
+          const newCurrentAmount = (parseFloat(c.currentAmount) || 0) + parseFloat(contribution.amount);
+          return {
+            ...c,
+            currentAmount: newCurrentAmount,
+            contributors: [...(c.contributors || []), contribution.user || "Anonyme"],
+            // Recalculer le pourcentage pour les tests
+            progressPercentage: c.goalAmount > 0 ? Math.min((newCurrentAmount / parseFloat(c.goalAmount)) * 100, 100) : 0
+          };
         }
+        return c;
       });
 
-      sendNotification({
-        userId: contribution.userId || 0,
-        type: "paymentResult",
-        data: {
-          status: "success",
-          amount: contribution.amount,
-          cagnotteTitle: cagnotte.title,
-          receiptLink: `/recu/${Date.now()}`,
-          retryLink: `/payer/${cagnotte.id}`
-        },
-        channels: ["console", "email", "sms"]
-      });
+      // Envoyer les notifications
+      if (cagnotte) {
+        sendNotification({
+          userId: cagnotte.creatorId || 1,
+          type: "newContribution",
+          data: {
+            amount: contribution.amount,
+            cagnotteTitle: cagnotte.title,
+            user: contribution.user || "Anonyme",
+            message: contribution.message || "",
+          }
+        });
 
+        sendNotification({
+          userId: contribution.userId || 0,
+          type: "paymentResult",
+          data: {
+            status: "success",
+            amount: contribution.amount,
+            cagnotteTitle: cagnotte.title,
+            receiptLink: `/recu/${Date.now()}`,
+            retryLink: `/payer/${cagnotte.id}`
+          },
+          channels: ["console", "email", "sms"]
+        });
+      }
+
+      // Sauvegarder dans localStorage
       localStorage.setItem("contributions", JSON.stringify(updatedContributions));
-      localStorage.setItem("cagnotte", JSON.stringify(updatedCagnotte));
+      if (updatedCagnotte) {
+        localStorage.setItem("cagnotte", JSON.stringify(updatedCagnotte));
+      }
       localStorage.setItem("cagnottes", JSON.stringify(updatedCagnottes));
+
+      console.log(`💰 Contribution ajoutée: ${contribution.amount} à cagnotte ${contribution.cagnotteId}`);
+      console.log(`📊 Nouveau montant: ${updatedCagnottes.find(c => c.id === contribution.cagnotteId)?.currentAmount}`);
 
       return {
         contributions: updatedContributions,
@@ -271,8 +347,21 @@ export const useCagnotteStore = create((set, get) => ({
 
   // fonction de reset pour la déconnexion
   reset: () => {
-    // Supprimer TOUTES les données du localStorage
-    localStorage.clear();
+    console.log('🔄 [CagnotteStore] Reset complet du store');
+
+    // Supprimer TOUTES les données du localStorage sauf celles essentielles
+    const keysToKeep = ['token', 'rememberMe', 'isNewUser'];
+    const keysToRemove = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !keysToKeep.includes(key)) {
+        keysToRemove.push(key);
+      }
+    }
+
+    console.log('🗑️ [CagnotteStore] Clés localStorage à supprimer:', keysToRemove);
+    keysToRemove.forEach(key => localStorage.removeItem(key));
 
     // Reset l'état du store à ses valeurs initiales
     set({
@@ -283,6 +372,8 @@ export const useCagnotteStore = create((set, get) => ({
       error: null,
       userContributions: []
     });
+
+    console.log('✅ [CagnotteStore] Reset terminé');
   },
 
 }));

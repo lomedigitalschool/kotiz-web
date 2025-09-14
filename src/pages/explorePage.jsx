@@ -1,22 +1,38 @@
 import React, { useEffect, useState } from "react";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 import Button from "../components/Button";
-import { FaHome, FaUser, FaTachometerAlt, FaSignOutAlt, FaCog } from "react-icons/fa";
+import { FaHome, FaUser, FaTachometerAlt, FaSignOutAlt, FaCog, FaLock, FaGlobe } from "react-icons/fa";
 
 
 export default function ExplorerPage() {
   const { cagnottes, fetchAllCagnottes } = useCagnotteStore();
+  const { user: currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("");
   const [sortOption, setSortOption] = useState("popular");
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
 
   // On récupère toutes les cagnottes au chargement de la page
   useEffect(() => {
     fetchAllCagnottes().finally(() => setLoading(false));
+  }, [fetchAllCagnottes]);
+
+  // Mise à jour automatique après les contributions
+  useEffect(() => {
+    // Écouter les changements dans le store pour rafraîchir automatiquement
+    const unsubscribe = useCagnotteStore.subscribe((state) => {
+      // Rafraîchir les données si nécessaire
+      if (state.cagnottes.length > 0) {
+        setRefreshKey(prev => prev + 1);
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   // Fonction pour filtrer et trier les cagnottes
@@ -153,8 +169,19 @@ export default function ExplorerPage() {
         </div>
       </header>
 
-      {/* Barre de rechercge et  filtre */}
-      <div className="flex flex-wrap gap-2 mb-4 mt-4 items-center bg-white p-3 rounded shadow sticky top-[4rem] z-10">
+      {/* Informations utilisateur et filtres */}
+      <div className="bg-white p-4 rounded shadow mb-4 sticky top-[4rem] z-10">
+        {/* Info utilisateur */}
+        {currentUser && (
+          <div className="flex items-center gap-2 mb-3 p-2 bg-blue-50 rounded">
+            <span className="text-sm text-blue-700">
+              👋 Connecté en tant que <strong>{currentUser.name || 'Utilisateur'}</strong>
+            </span>
+          </div>
+        )}
+
+        {/* Barre de recherche et filtres */}
+        <div className="flex flex-wrap gap-2 items-center">
         <input
           type="text"
           placeholder="Rechercher..."
@@ -180,6 +207,7 @@ export default function ExplorerPage() {
           <option value="amount">Montant décroissant</option>
           <option value="date">Plus récents</option>
         </select>
+        </div>
       </div>
 
       {/*loader */}
@@ -195,13 +223,30 @@ export default function ExplorerPage() {
       {/* listes des cagnottes*/}
       <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {filteredCagnottes.map((cagnotte) => {
-          const percent = Math.round((cagnotte.currentAmount / cagnotte.goalAmount) * 100);
+          // Calcul du pourcentage de progression
+          const currentAmount = cagnotte.currentAmount || 0;
+          const goalAmount = cagnotte.goalAmount || 1; // Éviter division par zéro
+          const percent = Math.min((currentAmount / goalAmount) * 100, 100);
+
           const isPopular = sortOption === "popular" && percent >= 50;
+          const isPrivate = cagnotte.type === 'private';
+
+          // Déterminer si l'utilisateur est propriétaire
+          const isOwner = currentUser && (
+            cagnotte.isOwner ||
+            cagnotte.userId === currentUser.id ||
+            cagnotte.owner?.id === currentUser.id
+          );
+
+          const hasMaskedDetails = isPrivate && !isOwner;
+
+          // Couleur de la barre de progression
+          const progressColor = percent >= 100 ? '#10B981' : '#3B82F6'; // Vert si complété, bleu sinon
 
           return (
             <li
               key={cagnotte.id}
-              className={`border rounded p-3 shadow hover:shadow-md transition cursor-pointer ${isPopular ? "border-yellow-400" : ""}`}
+              className={`border rounded p-3 shadow hover:shadow-md transition cursor-pointer ${isPopular ? "border-yellow-400" : ""} ${isPrivate ? "border-red-300 bg-red-50" : "border-green-300 bg-green-50"}`}
               onClick={() => navigate(`/cagnottes/${cagnotte.id}`)}
             >
               {/* Image de la cagnotte */}
@@ -221,31 +266,85 @@ export default function ExplorerPage() {
                 </div>
               )}
 
-              <h3 className="font-semibold">{cagnotte.title}</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">{cagnotte.title}</h3>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+                    isPrivate ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-green-100 text-green-800 border border-green-200'
+                  }`}
+                  title={isPrivate ? 'Cagnotte privée - Détails réservés au propriétaire' : 'Cagnotte publique - Visible par tous'}
+                >
+                  {isPrivate ? <FaLock className="text-xs" /> : <FaGlobe className="text-xs" />}
+                  {isPrivate ? 'Privé' : 'Public'}
+                </span>
+              </div>
 
               {/* Description */}
               {cagnotte.description && (
-                <p className="text-sm text-gray-700 mt-1 mb-2">{cagnotte.description}</p>
+                <p className="text-sm text-gray-700 mt-1 mb-2">
+                  {hasMaskedDetails ? "Description disponible pour les propriétaires uniquement" : cagnotte.description}
+                </p>
               )}
 
-              {/* Barre de progression */}
-              <div className="w-full bg-gray-200 h-3 rounded mt-2">
+              {/* Barre de progression avec accessibilité */}
+              <div
+                className="w-full bg-gray-200 h-4 rounded mt-2 relative"
+                role="progressbar"
+                aria-valuenow={hasMaskedDetails ? 30 : percent}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label={hasMaskedDetails ? "Détails financiers masqués" : `Progression: ${percent.toFixed(1)}% atteint`}
+                title={hasMaskedDetails ? "Détails réservés au propriétaire" : `Objectif: ${goalAmount.toLocaleString()} ${cagnotte.currency || 'XOF'}`}
+              >
                 <div
-                  className="h-3 rounded bg-green-600"
-                  style={{ width: `${percent}%` }}
+                  className={`h-4 rounded transition-all duration-500 ${hasMaskedDetails ? 'bg-gray-400 opacity-50' : ''}`}
+                  style={{
+                    width: hasMaskedDetails ? '30%' : `${percent}%`,
+                    backgroundColor: hasMaskedDetails ? undefined : progressColor
+                  }}
                 ></div>
               </div>
 
-              <p className="text-sm text-gray-500 mt-1">{percent}% atteint</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {hasMaskedDetails ? (
+                  <span title="Connectez-vous en tant que propriétaire pour voir les détails">
+                    🔒 Détails financiers masqués
+                  </span>
+                ) : (
+                  `${percent.toFixed(1)}% atteint • ${currentAmount.toLocaleString()} / ${goalAmount.toLocaleString()} ${cagnotte.currency || 'XOF'}`
+                )}
+              </p>
 
-              {isPopular && (
-                <span className="text-yellow-600 font-bold text-sm">🔥 Populaire</span>
-              )}
+              {/* Indicateurs et actions supplémentaires */}
+              <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center gap-2">
+                  {isPopular && (
+                    <span className="text-yellow-600 font-bold text-sm">🔥 Populaire</span>
+                  )}
+                  {isPrivate && isOwner && (
+                    <span className="text-blue-600 font-medium text-sm">👑 Propriétaire</span>
+                  )}
+                </div>
+
+                {isPrivate && isOwner && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/edit-cagnotte/${cagnotte.id}`);
+                    }}
+                    className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition-colors"
+                    title="Modifier cette cagnotte"
+                  >
+                    ✏️ Modifier
+                  </button>
+                )}
+              </div>
             </li>
 
           );
         })}
       </ul>
+
     </div>
   );
 }
