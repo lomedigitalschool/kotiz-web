@@ -83,16 +83,18 @@ export const useCagnotteStore = create((set, get) => ({
     set({ loading: true, error: null });
 
     try {
+      console.log('🌍 Récupération de toutes les cagnottes publiques');
+      console.log('🌍 Récupération de toutes les cagnottes publiques');
       // Essayer d'abord de récupérer toutes les cagnottes avec authentification
       let response;
       try {
-        response = await apiFetch(`${import.meta.env.VITE_API_URL}/pulls/all`);
-        console.log('Toutes les cagnottes récupérées avec authentification');
+        response = await apiFetch(`http://localhost:5000/api/v1/pulls/all`);
+        console.log('✅ Toutes les cagnottes récupérées avec authentification');
       } catch (authError) {
-        console.log('Authentification requise, récupération des cagnottes publiques seulement');
+        console.log('⚠️ Authentification requise, récupération des cagnottes publiques seulement');
         // Si pas authentifié, récupérer seulement les publiques
-        response = await apiFetch(`${import.meta.env.VITE_API_URL}/pulls/public`);
-        console.log('Cagnottes publiques récupérées (sans authentification)');
+        response = await apiFetch(`http://localhost:5000/api/v1/pulls/public`);
+        console.log('✅ Cagnottes publiques récupérées (sans authentification)');
       }
 
       if (!response.ok) {
@@ -100,7 +102,7 @@ export const useCagnotteStore = create((set, get) => ({
       }
 
       const result = await response.json();
-      console.log('Cagnottes récupérées:', result);
+      console.log('📊 Cagnottes récupérées:', result.data?.length || result.length);
 
       // Extraire les données du résultat (car l'API retourne un objet avec data)
       const data = result.data || result;
@@ -114,10 +116,11 @@ export const useCagnotteStore = create((set, get) => ({
       })) : [];
 
       set({ cagnottes: processedData, loading: false });
+      // Sauvegarder toutes les cagnottes dans localStorage (publiques + privées)
       localStorage.setItem("cagnottes", JSON.stringify(processedData));
     } catch (error) {
-      console.error('Erreur lors de la récupération des cagnottes:', error);
-      // Fallback vers localStorage en cas d'erreur
+      console.error('❌ Erreur lors de la récupération des cagnottes:', error);
+      // Fallback vers localStorage en cas d'erreur (seulement publiques)
       const stored = loadFromStorage("cagnottes", []);
       set({ cagnottes: stored, loading: false, error: error.message });
     }
@@ -128,14 +131,32 @@ export const useCagnotteStore = create((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      const response = await apiFetch(`${import.meta.env.VITE_API_URL}/pulls`);
+      console.log('🔍 Récupération des cagnottes de l\'utilisateur connecté');
+      
+      // Vérifier qu'on a un token valide
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('⚠️ Pas de token - utilisateur non authentifié');
+        set({ cagnottes: [], loading: false, error: 'Non authentifié' });
+        return;
+      }
+      
+      // ✅ CORRECTION: Utiliser l'URL correcte du backend
+      const response = await apiFetch(`http://localhost:5000/api/v1/pulls`);
 
       if (!response.ok) {
+        if (response.status === 401) {
+          console.warn('⚠️ Token expiré - nettoyage nécessaire');
+          localStorage.removeItem('token');
+          set({ cagnottes: [], loading: false, error: 'Session expirée' });
+          return;
+        }
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Cagnottes utilisateur récupérées:', data);
+      console.log('✅ Cagnottes utilisateur récupérées:', data.length, 'cagnottes');
+      console.log('📊 Données reçues du backend:', data);
 
       // S'assurer que chaque cagnotte a les bonnes propriétés
       const processedData = Array.isArray(data) ? data.map(c => ({
@@ -146,12 +167,10 @@ export const useCagnotteStore = create((set, get) => ({
       })) : [];
 
       set({ cagnottes: processedData, loading: false });
-      localStorage.setItem("cagnottes", JSON.stringify(processedData));
+      console.log('📊 Cagnottes de l\'utilisateur chargées:', processedData.length);
     } catch (error) {
-      console.error('Erreur lors de la récupération des cagnottes utilisateur:', error);
-      // Fallback vers localStorage en cas d'erreur
-      const stored = loadFromStorage("cagnottes", []);
-      set({ cagnottes: stored, loading: false, error: error.message });
+      console.error('❌ Erreur lors de la récupération des cagnottes utilisateur:', error);
+      set({ cagnottes: [], loading: false, error: error.message });
     }
   },
 
@@ -349,21 +368,7 @@ export const useCagnotteStore = create((set, get) => ({
   reset: () => {
     console.log('🔄 [CagnotteStore] Reset complet du store');
 
-    // Supprimer TOUTES les données du localStorage sauf celles essentielles
-    const keysToKeep = ['token', 'rememberMe', 'isNewUser'];
-    const keysToRemove = [];
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && !keysToKeep.includes(key)) {
-        keysToRemove.push(key);
-      }
-    }
-
-    console.log('🗑️ [CagnotteStore] Clés localStorage à supprimer:', keysToRemove);
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-
-    // Reset l'état du store à ses valeurs initiales
+    // Reset immédiat de l'état du store
     set({
       cagnotte: null,
       contributions: [],
@@ -373,7 +378,14 @@ export const useCagnotteStore = create((set, get) => ({
       userContributions: []
     });
 
-    console.log('✅ [CagnotteStore] Reset terminé');
+    // Supprimer TOUTES les données du localStorage liées aux cagnottes
+    const keysToRemove = ['cagnottes', 'contributions', 'cagnotte', 'localCagnottes', 'userContributions'];
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+      console.log(`🗑️ Supprimé: ${key}`);
+    });
+
+    console.log('✅ [CagnotteStore] Reset terminé - Isolation des données utilisateur assurée');
   },
 
 }));

@@ -14,11 +14,22 @@ const EmailVerificationBanner = () => {
 
   const checkEmailVerification = async () => {
     try {
+      // Vérifier si l'utilisateur a un email
+      const { auth } = await import('../config/firebase');
+      const currentUser = auth.currentUser;
+      
+      // Si pas d'email ou email temporaire, ne pas afficher la bannière
+      if (!currentUser?.email || currentUser.email.includes('@kotiz-test.com')) {
+        setShowBanner(false);
+        return;
+      }
+      
       const verified = isEmailVerified();
       setIsVerified(verified);
       setShowBanner(!verified);
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'email:', error);
+      setShowBanner(false);
     }
   };
 

@@ -4,46 +4,23 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
 import { FaArrowLeft, FaHome, FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt } from "react-icons/fa";
-import { logout } from "../services/auth";
+import { useAuth } from "../contexts/AuthContext";
 import EmailVerificationBanner from "../components/EmailVerificationBanner";
+import api from "../services/api";
 
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const { cagnottes, fetchUserCagnottes, contributions, fetchUserContributions, loading, error, deleteCagnotte } = useCagnotteStore();
   const [userStats, setUserStats] = useState({});
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
-    // ✅ Nettoyer les données mockées restantes au premier chargement
+    // Le chargement des données est maintenant géré par AuthContext
+    // Ce useEffect ne fait que nettoyer les anciennes données mockées
     useCagnotteStore.getState().cleanMockData();
-
-    // ✅ Vérifier si c'est un nouvel utilisateur (token fraîchement créé)
-    const token = localStorage.getItem('token');
-    const isNewUser = localStorage.getItem('isNewUser') === 'true';
-
-    if (token) {
-      // Si c'est un nouvel utilisateur, nettoyer complètement le store avant de charger
-      if (isNewUser) {
-        console.log('🆕 Nouvel utilisateur détecté, nettoyage complet du store');
-        useCagnotteStore.getState().reset();
-        localStorage.removeItem('isNewUser'); // Marquer comme traité
-      }
-
-      fetchUserCagnottes(); // Utilise la fonction qui récupère seulement les cagnottes de l'utilisateur
-      fetchUserContributions();
-    }
-
-    // ⚠️ Éviter de fusionner les localCagnottes pour les nouveaux utilisateurs
-    if (!isNewUser) {
-      const local = JSON.parse(localStorage.getItem("localCagnottes") || "[]");
-      if (local.length) {
-        const current = useCagnotteStore.getState().cagnottes;
-        const merged = [...current, ...local.filter(l => !current.find(c => c.id === l.id))];
-        useCagnotteStore.getState().setCagnottes(merged);
-      }
-    }
-  }, [fetchUserCagnottes, fetchUserContributions]);
+  }, []);
 
   // Calculer les statistiques utilisateur
   useEffect(() => {
@@ -177,16 +154,16 @@ const Dashboard = () => {
               <button
                 onClick={async () => {
                   try {
-                    await logout(); // Déconnexion Firebase
-                    useCagnotteStore.getState().reset(); // Nettoie le store
-                    localStorage.removeItem('isNewUser'); // Supprimer le flag nouvel utilisateur
+                    // Utiliser la même méthode que la page de profil
+                    const { logout: firebaseLogout } = await import('../services/auth');
+                    await firebaseLogout(); // Déconnexion Firebase complète
+                    logout(); // Nettoyage AuthContext
                     setShowLogoutConfirm(false);
                     navigate("/login");
                   } catch (error) {
                     console.error('Erreur lors de la déconnexion:', error);
-                    // Même en cas d'erreur, on nettoie et redirige
-                    useCagnotteStore.getState().reset();
-                    localStorage.removeItem('isNewUser');
+                    // Forcer le nettoyage même en cas d'erreur
+                    logout();
                     setShowLogoutConfirm(false);
                     navigate("/login");
                   }
@@ -318,17 +295,31 @@ const Dashboard = () => {
                   Voir détails
                 </button>
                 <button
-                  onClick={() => navigate(`/edit-cagnotte/${c.id}`)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/edit-cagnotte/${c.id}`);
+                  }}
                   className="px-4 py-2 rounded-md text-white hover:opacity-90 transition"
                   style={{ backgroundColor: colors.primary }}
                 >
                   Modifier
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async (e) => {
+                    e.stopPropagation();
                     if (!window.confirm(`Supprimer la cagnotte "${c.title}" ?`)) return;
-                    deleteCagnotte(c.id);
-                    alert(`Cagnotte "${c.title}" supprimée`);
+                    
+                    try {
+                      // Appel API pour supprimer la cagnotte
+                      await api.delete(`/pulls/${c.id}`);
+                      // Supprimer du store local
+                      deleteCagnotte(c.id);
+                      alert(`Cagnotte "${c.title}" supprimée avec succès`);
+                      // Pas besoin de redirection car on est déjà sur le dashboard
+                    } catch (error) {
+                      console.error('Erreur lors de la suppression:', error);
+                      alert('Erreur lors de la suppression. Vérifiez que vous êtes le propriétaire.');
+                    }
                   }}
                   className="px-4 py-2 rounded-md text-white hover:opacity-90 transition"
                   style={{ backgroundColor: "#EF4444" }}

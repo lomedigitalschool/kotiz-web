@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/Button";
 import { FaHome, FaUser, FaTachometerAlt, FaSignOutAlt, FaCog, FaLock, FaGlobe } from "react-icons/fa";
 
 
 export default function ExplorerPage() {
   const { cagnottes, fetchAllCagnottes } = useCagnotteStore();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, logout } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("");
   const [sortOption, setSortOption] = useState("popular");
@@ -121,11 +121,21 @@ export default function ExplorerPage() {
                       Non
                     </button>
                     <button
-                      onClick={() => {
-                        // la  Logique de déconnexion
-                        localStorage.removeItem("token");
-                        setShowLogoutConfirm(false);
-                        navigate("/login");
+                      onClick={async () => {
+                        try {
+                          // Utiliser la même méthode que les autres pages
+                          const { logout: firebaseLogout } = await import('../services/auth');
+                          await firebaseLogout(); // Déconnexion Firebase complète
+                          logout(); // Nettoyage AuthContext
+                          setShowLogoutConfirm(false);
+                          navigate("/login");
+                        } catch (error) {
+                          console.error('Erreur lors de la déconnexion:', error);
+                          // Forcer le nettoyage même en cas d'erreur
+                          logout();
+                          setShowLogoutConfirm(false);
+                          navigate("/login");
+                        }
                       }}
                       className="px-4 py-2 text-white rounded"
                       style={{ backgroundColor: "#4CA260" }}

@@ -2,11 +2,13 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
+import { useAuth } from "../contexts/AuthContext";
 import api from "../services/api";
 
 const EditCagnotte = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { cagnotte, fetchCagnotte, updateCagnotte } = useCagnotteStore();
 
   const [formData, setFormData] = useState({
@@ -23,11 +25,23 @@ const EditCagnotte = () => {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Charger la cagnotte
+  // Charger la cagnotte et vérifier la propriété
   useEffect(() => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
     if (!cagnotte || cagnotte.id !== Number(id)) {
       fetchCagnotte(Number(id));
     } else {
+      // Vérifier que l'utilisateur est propriétaire
+      if (cagnotte.userId !== user.id && cagnotte.owner?.id !== user.id) {
+        alert('Vous n\'avez pas l\'autorisation de modifier cette cagnotte.');
+        navigate('/dashboard');
+        return;
+      }
+      
       setFormData({
         title: cagnotte.title || "",
         description: cagnotte.description || "",
@@ -40,7 +54,7 @@ const EditCagnotte = () => {
         currency: cagnotte.currency || "FCFA",
       });
     }
-  }, [id, cagnotte, fetchCagnotte]);
+  }, [id, cagnotte, fetchCagnotte, user, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -204,24 +218,47 @@ const EditCagnotte = () => {
         </div>
 
         {/* Boutons */}
-        <div className="flex justify-end gap-4 mt-4">
+        <div className="flex justify-between mt-4">
           <button
             type="button"
-            onClick={() => navigate("/dashboard")}
+            onClick={async () => {
+              if (!window.confirm(`Supprimer définitivement la cagnotte "${formData.title}" ?`)) return;
+              
+              try {
+                await api.delete(`/pulls/${id}`);
+                alert('Cagnotte supprimée avec succès');
+                navigate('/dashboard');
+              } catch (error) {
+                console.error('Erreur lors de la suppression:', error);
+                alert('Erreur lors de la suppression. Vérifiez vos autorisations.');
+              }
+            }}
             className="px-6 py-2 rounded-md text-white hover:opacity-90 transition"
-            style={{ backgroundColor: "#EF4444" }}
+            style={{ backgroundColor: "#DC2626" }}
             disabled={loading}
           >
-            Annuler
+            Supprimer
           </button>
-          <button
-            type="submit"
-            className="px-6 py-2 rounded-md text-white hover:opacity-90 transition"
-            style={{ backgroundColor: colors.primary }}
-            disabled={loading}
-          >
-            {loading ? "Enregistrement..." : "Enregistrer"}
-          </button>
+          
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              className="px-6 py-2 rounded-md text-white hover:opacity-90 transition"
+              style={{ backgroundColor: "#6B7280" }}
+              disabled={loading}
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 rounded-md text-white hover:opacity-90 transition"
+              style={{ backgroundColor: colors.primary }}
+              disabled={loading}
+            >
+              {loading ? "Enregistrement..." : "Enregistrer"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

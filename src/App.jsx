@@ -18,7 +18,7 @@ import NotificationsPage from "./pages/Notifications";
 import KycForm from "./pages/KycForm";
 import Transactions from "./pages/Transactions";
 import OTPTestPage from "./pages/OTPTestPage";
-import { useAuth } from "./hooks/useAuth";
+import { useAuth } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Breadcrumb from "./components/Breadcrumb";
 

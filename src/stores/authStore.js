@@ -1,10 +1,5 @@
-/**
- * Store d'authentification centralisé pour KOTIZ
- * Gère l'état d'authentification et l'isolation des données utilisateur
- */
 import { create } from 'zustand';
 import { authService } from '../services/authService';
-import { useCagnotteStore } from './cagnotteStore';
 
 export const useAuthStore = create((set, get) => ({
   // État d'authentification
@@ -20,13 +15,9 @@ export const useAuthStore = create((set, get) => ({
 
   // ==================== ACTIONS D'AUTHENTIFICATION ====================
 
-  /**
-   * Initialise l'écouteur d'état d'authentification
-   */
   initAuth: () => {
     console.log('🔄 Initialisation de l\'authentification');
 
-    // Vérifier s'il y a un token existant
     const token = localStorage.getItem('token');
     if (token) {
       set({ isAuthenticated: true });
@@ -34,9 +25,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Inscription avec email et mot de passe
-   */
   registerWithEmail: async (email, password, displayName, phoneNumber = null) => {
     set({ isLoading: true, error: null });
 
@@ -45,7 +33,6 @@ export const useAuthStore = create((set, get) => ({
 
       const result = await authService.registerWithEmail(email, password, displayName, phoneNumber);
 
-      // Sauvegarder le numéro de téléphone si fourni
       if (phoneNumber) {
         try {
           await authService.savePhoneNumber(phoneNumber);
@@ -55,11 +42,7 @@ export const useAuthStore = create((set, get) => ({
         }
       }
 
-      // Marquer comme nouvel utilisateur
       localStorage.setItem('isNewUser', 'true');
-
-      // Nettoyer le store pour éviter les données d'anciens utilisateurs
-      useCagnotteStore.getState().reset();
 
       set({
         user: result.user,
@@ -79,84 +62,104 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Inscription avec numéro de téléphone (envoi OTP)
-   */
-  registerWithPhone: async (phoneNumber, displayName = null) => {
+  registerWithPhone: async (phoneNumber) => {
     set({ isLoading: true, error: null });
 
     try {
-      console.log('📱 Tentative d\'inscription avec téléphone');
-
-      const result = await authService.registerWithPhone(phoneNumber, displayName);
-
-      set({
+      const confirmationResult = await authService.registerWithPhoneNumber(phoneNumber);
+      set({ 
+        confirmationResult, 
         isLoading: false,
-        otpStep: 'register',
-        confirmationResult: result.confirmationResult,
-        phoneNumber: result.phoneNumber
+        phoneNumber,
+        otpStep: 'register'
       });
-
-      console.log('✅ OTP d\'inscription envoyé');
-      return { success: true, confirmationResult: result.confirmationResult };
+      return confirmationResult;
 
     } catch (error) {
       console.error('❌ Erreur inscription téléphone:', error);
-      set({ error: error.message, isLoading: false });
+
+      if (error.message.includes('reCAPTCHA') || error.message.includes('undefined')) {
+        console.warn('🔄 Tentative de réinitialisation reCAPTCHA...');
+
+        authService.cleanupRecaptcha();
+
+        try {
+          const confirmationResult = await authService.registerWithPhoneNumber(phoneNumber);
+          set({ 
+            confirmationResult, 
+            isLoading: false,
+            phoneNumber,
+            otpStep: 'register'
+          });
+          return confirmationResult;
+        } catch (retryError) {
+          set({
+            error: 'Problème de sécurité. Veuillez recharger la page et réessayer.',
+            isLoading: false
+          });
+        }
+      } else {
+        let errorMessage = 'Erreur lors de l\'inscription';
+        if (error.code === 'auth/invalid-phone-number') {
+          errorMessage = 'Numéro de téléphone invalide';
+        } else if (error.code === 'auth/too-many-requests') {
+          errorMessage = 'Trop de tentatives. Veuillez réessayer plus tard';
+        }
+
+        set({ error: errorMessage, isLoading: false });
+      }
+
       throw error;
     }
   },
 
-  /**
-   * Confirmation d'inscription avec téléphone (vérification OTP)
-   */
-  confirmPhoneRegistration: async (otpCode) => {
-    const { confirmationResult, phoneNumber } = get();
-
-    if (!confirmationResult) {
-      throw new Error('Aucune session OTP active');
-    }
-
+  verifyCode: async (code) => {
     set({ isLoading: true, error: null });
 
     try {
-      console.log('🔐 Confirmation inscription téléphone');
+      const { confirmationResult } = get();
+      if (!confirmationResult) {
+        throw new Error('Aucune vérification en cours');
+      }
 
-      const result = await authService.confirmPhoneRegistration(
-        confirmationResult,
-        otpCode,
-        null, // displayName sera géré par Firebase
-        phoneNumber
-      );
+      const user = await authService.verifySMSCode(confirmationResult, code);
 
-      // Marquer comme nouvel utilisateur
       localStorage.setItem('isNewUser', 'true');
 
-      // Nettoyer le store
-      useCagnotteStore.getState().reset();
-
       set({
-        user: result.user,
+        user,
         isAuthenticated: true,
         isLoading: false,
-        otpStep: null,
         confirmationResult: null,
+        otpStep: null,
         phoneNumber: null
       });
 
-      console.log('✅ Inscription téléphone confirmée');
-      return { success: true, user: result.user };
+      console.log('✅ Code vérifié avec succès');
+      return user;
 
     } catch (error) {
-      console.error('❌ Erreur confirmation inscription:', error);
-      set({ error: error.message, isLoading: false });
+      console.error('❌ Erreur vérification code:', error);
+
+      const errorMessage = error.code === 'auth/invalid-verification-code'
+        ? 'Code de vérification invalide'
+        : 'Erreur lors de la vérification';
+
+      set({ error: errorMessage, isLoading: false });
       throw error;
     }
   },
 
-  /**
-   * Connexion avec email et mot de passe
-   */
+  cleanup: () => {
+    authService.cleanupRecaptcha();
+    set({ 
+      confirmationResult: null, 
+      error: null,
+      otpStep: null,
+      phoneNumber: null
+    });
+  },
+
   loginWithEmail: async (email, password, remember = false) => {
     set({ isLoading: true, error: null });
 
@@ -165,10 +168,8 @@ export const useAuthStore = create((set, get) => ({
 
       const result = await authService.loginWithEmail(email, password, remember);
 
-      // Nettoyer le store si c'est un nouvel utilisateur
       const isNewUser = localStorage.getItem('isNewUser') === 'true';
       if (isNewUser) {
-        useCagnotteStore.getState().reset();
         localStorage.removeItem('isNewUser');
       }
 
@@ -190,9 +191,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Connexion avec numéro de téléphone (envoi OTP)
-   */
   loginWithPhone: async (phoneNumber, remember = false) => {
     set({ isLoading: true, error: null });
 
@@ -218,9 +216,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Confirmation de connexion avec téléphone (vérification OTP)
-   */
   confirmPhoneLogin: async (otpCode) => {
     const { confirmationResult } = get();
 
@@ -235,10 +230,8 @@ export const useAuthStore = create((set, get) => ({
 
       const result = await authService.confirmPhoneLogin(confirmationResult, otpCode);
 
-      // Nettoyer le store si c'est un nouvel utilisateur
       const isNewUser = localStorage.getItem('isNewUser') === 'true';
       if (isNewUser) {
-        useCagnotteStore.getState().reset();
         localStorage.removeItem('isNewUser');
       }
 
@@ -261,9 +254,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Réinitialisation de mot de passe
-   */
   resetPassword: async (identifier) => {
     set({ isLoading: true, error: null });
 
@@ -277,7 +267,6 @@ export const useAuthStore = create((set, get) => ({
         set({ isLoading: false });
         return result;
       } else {
-        // Pour le téléphone, on pourrait implémenter une logique différente
         throw new Error('La réinitialisation par téléphone n\'est pas encore implémentée');
       }
 
@@ -288,17 +277,14 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  /**
-   * Déconnexion
-   */
   logout: async () => {
     set({ isLoading: true, error: null });
 
     try {
-      console.log('🚪 Déconnexion');
-
+      console.log('🚪 Déconnexion depuis authStore');
       await authService.logout();
-
+      
+      // Reset immédiat de l'état
       set({
         user: null,
         isAuthenticated: false,
@@ -309,19 +295,25 @@ export const useAuthStore = create((set, get) => ({
         phoneNumber: null
       });
 
-      console.log('✅ Déconnexion réussie');
+      console.log('✅ Déconnexion authStore réussie');
       return { success: true };
 
     } catch (error) {
-      console.error('❌ Erreur déconnexion:', error);
-      set({ error: error.message, isLoading: false });
-      throw error;
+      console.error('❌ Erreur déconnexion authStore:', error);
+      // Même en cas d'erreur, on reset
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+        otpStep: null,
+        confirmationResult: null,
+        phoneNumber: null
+      });
+      return { success: true };
     }
   },
 
-  /**
-   * Renvoi d'email de vérification
-   */
   resendEmailVerification: async () => {
     set({ isLoading: true, error: null });
 
@@ -339,17 +331,12 @@ export const useAuthStore = create((set, get) => ({
 
   // ==================== UTILITAIRES ====================
 
-  /**
-   * Réinitialise l'état d'erreur
-   */
   clearError: () => {
     set({ error: null });
   },
 
-  /**
-   * Annule l'OTP en cours
-   */
   cancelOTP: () => {
+    authService.cleanupRecaptcha();
     set({
       otpStep: null,
       confirmationResult: null,
@@ -358,16 +345,10 @@ export const useAuthStore = create((set, get) => ({
     });
   },
 
-  /**
-   * Vérifie si l'utilisateur actuel a un email vérifié
-   */
   isEmailVerified: () => {
     return authService.isEmailVerified();
   },
 
-  /**
-   * Obtient l'utilisateur actuel
-   */
   getCurrentUser: () => {
     return authService.getCurrentUser();
   }

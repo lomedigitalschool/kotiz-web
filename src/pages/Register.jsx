@@ -7,6 +7,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import PhoneInput from "../components/PhoneInput";
 import PasswordInput from "../components/PasswordInput";
+import { updateUserPhone } from "../services/api";
 
 export const Register = () => {
   const navigate = useNavigate();
@@ -14,15 +15,16 @@ export const Register = () => {
   const {
     registerWithEmail,
     registerWithPhone,
-    confirmPhoneRegistration,
+    verifyCode,
     isLoading,
     error,
+    confirmationResult,
     otpStep,
-    clearError
+    clearError,
+    cleanup
   } = useAuthStore();
 
   const [step, setStep] = useState(1);
-  const [registrationType, setRegistrationType] = useState('email'); // 'email' ou 'phone'
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
@@ -35,26 +37,24 @@ export const Register = () => {
     defaultCurrency: "XOF",
   });
   const [errors, setErrors] = useState({});
+  const [showOTPStep, setShowOTPStep] = useState(false);
 
-  // Initialiser reCAPTCHA pour l'inscription téléphone
+  // Nettoyer reCAPTCHA quand le composant est démonté
   useEffect(() => {
-    if (registrationType === 'phone' && !window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier = new RecaptchaVerifier('recaptcha-container', {
-          size: 'invisible',
-          callback: () => console.log('✅ reCAPTCHA réussi'),
-          'expired-callback': () => console.warn('⚠️ reCAPTCHA expiré')
-        });
-      } catch (error) {
-        console.error('❌ Erreur initialisation reCAPTCHA:', error);
-      }
+    return () => cleanup();
+  }, [cleanup]);
+
+  // Gérer l'affichage de l'étape OTP
+  useEffect(() => {
+    if (confirmationResult && otpStep === 'register') {
+      setShowOTPStep(true);
     }
-  }, [registrationType]);
+  }, [confirmationResult, otpStep]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    // Clear error for the field being changed
     setErrors({ ...errors, [e.target.name]: "" });
+    clearError();
   };
 
   const validateStep = () => {
@@ -82,7 +82,101 @@ export const Register = () => {
       setStep(step + 1);
     }
   };
+  
   const prevStep = () => setStep(step - 1);
+
+  const handleOTPSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!form.otpCode || form.otpCode.length !== 6) {
+      setErrors({ otpCode: "Veuillez saisir un code à 6 chiffres" });
+      return;
+    }
+
+    try {
+      // Vérification spéciale pour le numéro de test
+      const formattedPhone = form.phone.replace(/[^\d+]/g, '');
+      console.log('📱 Numéro formaté:', formattedPhone);
+      console.log('🔢 Code saisi:', form.otpCode);
+      
+      if ((formattedPhone === '+22899974644' || formattedPhone === '22899974644') && form.otpCode === '974644') {
+        console.log('🧪 Vérification code test - création utilisateur temporaire');
+        
+        // Créer un utilisateur anonyme puis lier le téléphone
+        const { signInAnonymously, updateProfile } = await import('firebase/auth');
+        const { auth } = await import('../config/firebase');
+        
+        const displayName = `${form.prenom} ${form.nom}`;
+        
+        const userCredential = await signInAnonymously(auth);
+        const user = userCredential.user;
+        
+        // Mettre à jour le profil avec le nom
+        await updateProfile(user, { displayName });
+        
+        // Obtenir le token
+        const idToken = await user.getIdToken(true);
+        localStorage.setItem('token', idToken);
+        localStorage.setItem('isNewUser', 'true');
+
+        // Sauvegarder le numéro de téléphone
+        if (form.phone && form.phone.trim()) {
+          try {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await updateUserPhone(form.phone.trim());
+            console.log('Numéro de téléphone sauvegardé:', form.phone);
+          } catch (phoneError) {
+            console.warn('Erreur sauvegarde téléphone:', phoneError);
+          }
+        }
+
+        // Nettoyer et recharger
+        useCagnotteStore.getState().reset();
+        await fetchAllCagnottes();
+
+        alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
+        navigate('/dashboard');
+        return;
+      }
+      
+      // Pour les autres cas, utiliser la méthode normale
+      const user = await verifyCode(form.otpCode);
+      
+      // Attendre que l'utilisateur soit complètement authentifié
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Obtenir le token Firebase
+      const idToken = await user.getIdToken(true); // forcer le refresh
+      localStorage.setItem('token', idToken);
+      localStorage.setItem('isNewUser', 'true');
+      
+      console.log('Token sauvegardé:', idToken.substring(0, 20) + '...');
+
+      // Sauvegarder le numéro de téléphone si fourni
+      if (form.phone && form.phone.trim()) {
+        try {
+          // Attendre encore un peu pour que le token soit validé côté serveur
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await updateUserPhone(form.phone.trim());
+          console.log('Numéro de téléphone sauvegardé:', form.phone);
+        } catch (phoneError) {
+          console.warn('Erreur lors de la sauvegarde du numéro de téléphone:', phoneError);
+          // Ne pas bloquer si ça échoue
+        }
+      }
+
+      // Nettoyer et recharger les données
+      useCagnotteStore.getState().reset();
+      await fetchAllCagnottes();
+
+      alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
+      navigate('/dashboard');
+
+    } catch (error) {
+      console.error("Erreur lors de la vérification OTP:", error);
+      setErrors({ otpCode: "Code invalide. Veuillez réessayer." });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -101,10 +195,9 @@ export const Register = () => {
 
     try {
       const displayName = `${form.prenom.trim()} ${form.nom.trim()}`;
-
       let result;
 
-      // ✅ Vérifier le type d'inscription et appeler la bonne méthode
+      // Vérifier le type d'inscription et appeler la bonne méthode
       if (form.email && form.email.trim()) {
         // Inscription avec email et mot de passe
         if (!form.password) {
@@ -120,48 +213,48 @@ export const Register = () => {
         console.log('📧 Inscription avec email:', form.email);
         result = await registerWithEmail(form.email, form.password, displayName, form.phone);
 
+        // Traitement après inscription réussie (pour email uniquement)
+        const { user } = result;
+
+        // Obtenir le token Firebase mis à jour
+        const idToken = await user.getIdToken();
+        localStorage.setItem('token', idToken);
+        localStorage.setItem('isNewUser', 'true');
+
+        // Sauvegarder le numéro de téléphone en base de données si fourni
+        if (form.phone && form.phone.trim()) {
+          try {
+            await updateUserPhone(form.phone.trim());
+            console.log('Numéro de téléphone sauvegardé:', form.phone);
+          } catch (phoneError) {
+            console.warn('Erreur lors de la sauvegarde du numéro de téléphone:', phoneError);
+          }
+        }
+
+        // Nettoyer complètement le store avant de charger les nouvelles données
+        useCagnotteStore.getState().reset();
+        await fetchAllCagnottes();
+
+        alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
+        navigate('/dashboard');
+
       } else if (form.phone && form.phone.trim()) {
         // Inscription avec téléphone OTP
         console.log('📱 Inscription avec téléphone:', form.phone);
-        result = await registerWithPhone(form.phone, displayName);
-        // Pour le téléphone, on passe à l'étape OTP
-        setStep(3);
+        
+        // Pour le numéro de test, passer directement à l'OTP
+        const formattedPhone = form.phone.replace(/[^\d+]/g, '');
+        if (formattedPhone === '+22899974644' || formattedPhone === '22899974644') {
+          setShowOTPStep(true);
+          return;
+        }
+        
+        await registerWithPhone(form.phone);
+        // L'état showOTPStep sera mis à jour par useEffect
         return;
       } else {
         throw new Error("Veuillez renseigner au moins un email ou un numéro de téléphone");
       }
-
-      // Traitement après inscription réussie (pour email uniquement)
-      const { user } = result;
-
-      // Obtenir le token Firebase mis à jour
-      const idToken = await user.getIdToken();
-
-      // Stocker le token Firebase dans localStorage
-      localStorage.setItem('token', idToken);
-      localStorage.setItem('isNewUser', 'true'); // Marquer comme nouvel utilisateur
-
-      // ✅ Sauvegarder le numéro de téléphone en base de données si fourni
-      if (form.phone && form.phone.trim()) {
-        try {
-          await updateUserPhone(form.phone.trim());
-          console.log('Numéro de téléphone sauvegardé:', form.phone);
-        } catch (phoneError) {
-          console.warn('Erreur lors de la sauvegarde du numéro de téléphone:', phoneError);
-          // Ne pas bloquer l'inscription si la sauvegarde du téléphone échoue
-        }
-      }
-
-      // ✅ Nettoyer complètement le store avant de charger les nouvelles données
-      useCagnotteStore.getState().reset();
-
-      // ✅ Forcer le rechargement des données du nouvel utilisateur
-      await fetchAllCagnottes();
-
-      // Afficher message de succès
-      alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
-      // Rediriger vers le tableau de bord
-      navigate('/dashboard');
 
     } catch (error) {
       console.error("Erreur lors de l'inscription:", error);
@@ -182,15 +275,71 @@ export const Register = () => {
     }
   };
 
+  // Affichage de l'étape OTP
+  if (showOTPStep) {
+    return (
+      <div className="flex flex-col min-h-screen items-center bg-[#f7f9fc]">
+        <nav className="flex gap-5 text-sm text-[#00000] font-medium justify-end w-full max-w-6xl px-10 mt-6">
+          <FaArrowLeft className="w-5 h-4" onClick={() => setShowOTPStep(false)} style={{ cursor: 'pointer' }}/>
+          <a href="/"> Retour à l'accueil</a>
+        </nav>
+
+        {/* Container pour reCAPTCHA invisible */}
+        <div id="recaptcha-container"></div>
+
+        <main className="flex w-full max-w-md bg-white rounded-2xl shadow-lg overflow-hidden mt-10">
+          <div className="flex-1 p-10">
+            <h2 className="text-3xl font-bold text-[#4ca260] mb-4">Vérification OTP</h2>
+            <p className="text-gray-600 mb-6">
+              Saisissez le code à 6 chiffres envoyé à votre téléphone
+            </p>
+
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleOTPSubmit} className="flex flex-col gap-4">
+              <div>
+                <label className="block font-medium text-gray-700">Code OTP <span className="text-red-500">*</span></label>
+                <input 
+                  type="text" 
+                  name="otpCode" 
+                  required 
+                  value={form.otpCode} 
+                  onChange={handleChange} 
+                  className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none text-center text-2xl tracking-widest" 
+                  placeholder="000000"
+                  maxLength="6"
+                />
+                {errors.otpCode && <p className="text-red-500 text-sm mt-1">{errors.otpCode}</p>}
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                className="bg-[#4ca260] text-white font-bold py-3 rounded-lg hover:bg-[#082e11] transition disabled:opacity-50"
+              >
+                {isLoading ? 'Vérification...' : 'Vérifier le code'}
+              </button>
+            </form>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen items-center bg-[#f7f9fc]">
+      <nav className="flex gap-5 text-sm text-[#00000] font-medium justify-end w-full max-w-6xl px-10 mt-6">
+        <FaArrowLeft className="w-5 h-4" onClick={() => navigate(-1)} style={{ cursor: 'pointer' }}/>
+        <a href="/"> Retour à l'accueil</a>
+      </nav>
 
-       <nav className="flex gap-5 text-sm text-[#00000] font-medium justify-end w-full max-w-6xl px-10 mt-6">
-
-           <FaArrowLeft className="w-5 h-4" onClick={() => navigate(-1)} style={{ cursor: 'pointer' }}/>
-          <a href="/"> Retour à l'accueil</a>
-          
-        </nav>
+      {/* Container pour reCAPTCHA invisible */}
+      <div id="recaptcha-container"></div>
+      
       <main className="flex w-full max-w-6xl bg-white rounded-2xl shadow-lg overflow-hidden">
         {/* Illustration gauche */}
         <div className="hidden md:flex flex-1 bg-[#f7f9fc] items-center justify-center p-8">
@@ -198,7 +347,6 @@ export const Register = () => {
         </div>
          
         {/* Formulaire droite */}
-        
         <div className="flex-1 p-10">
           <h2 className="text-3xl font-bold text-[#4ca260] mb-4">Créer un compte</h2>
           <p className="text-gray-600 mb-6">
@@ -209,6 +357,12 @@ export const Register = () => {
           <div className="w-full bg-gray-200 rounded-full h-2.5 mb-6">
             <div className="bg-[#4ca260] h-2.5 rounded-full" style={{ width: `${(step / 3) * 100}%` }}></div>
           </div>
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {step === 1 && (
@@ -297,7 +451,13 @@ export const Register = () => {
                 </div>
                 <div className="flex justify-between">
                   <button type="button" onClick={prevStep} className="bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-lg hover:bg-gray-400 transition">Précédent</button>
-                  <button type="submit" className="bg-[#4ca260] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#082e11] transition">S’inscrire</button>
+                  <button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="bg-[#4ca260] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#082e11] transition disabled:opacity-50"
+                  >
+                    {isLoading ? 'Inscription...' : 'S\'inscrire'}
+                  </button>
                 </div>
               </>
             )}

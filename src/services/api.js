@@ -70,85 +70,54 @@ api.interceptors.response.use(
 export async function apiFetch(url, options = {}) {
   console.log('🌐 apiFetch appelé pour:', url);
 
-  // Vérifier d'abord si Firebase considère l'utilisateur comme connecté
-  const isFirebaseAuthenticated = auth.currentUser !== null;
-  console.log('🔍 État Firebase:', isFirebaseAuthenticated ? 'Connecté' : 'Non connecté');
-
-  // Obtenir un token valide (avec cache et refresh automatique)
-  const token = await getValidToken();
-  console.log('🎫 Token obtenu:', token ? 'Oui' : 'Non');
-
-  // Si pas de token mais Firebase dit que l'utilisateur est connecté,
-  // attendre un peu que Firebase mette à jour le token
-  if (!token && isFirebaseAuthenticated) {
-    console.log('⏳ Token manquant mais Firebase indique utilisateur connecté, attente...');
-    // Attendre jusqu'à 2 secondes que Firebase mette à jour le session
-    let attempts = 0;
-    while (attempts < 20) { // 20 * 100ms = 2 secondes max
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const freshToken = localStorage.getItem('token');
-      if (freshToken) {
-        console.log('✅ Token récupéré après attente');
-        break;
-      }
-      attempts++;
-    }
+  // Obtenir le token depuis localStorage
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    console.warn('⚠️ Pas de token disponible');
+    throw new Error('Non authentifié');
   }
-
-  const finalToken = localStorage.getItem('token') || token;
-  console.log('🔑 Token final disponible:', finalToken ? 'Oui' : 'Non');
 
   const defaultHeaders = {
     'Content-Type': 'application/json',
-    ...(finalToken && { Authorization: `Bearer ${finalToken}` }),
+    Authorization: `Bearer ${token}`,
     ...(options.headers || {})
   };
 
-  console.log('📤 Envoi requête avec headers:', {
-    url,
-    hasAuth: !!finalToken,
-    method: options.method || 'GET'
-  });
+  console.log('📤 Envoi requête avec token');
 
   const response = await fetch(url, {
     ...options,
     headers: defaultHeaders
   });
 
-  console.log('📥 Réponse reçue:', response.status, response.statusText);
+  console.log('📥 Réponse reçue:', response.status);
 
-  // Gestion réactive des tokens expirés (au cas où)
+  // Gestion des tokens expirés
   if (response.status === 401) {
-    // Vérifier encore une fois si Firebase considère l'utilisateur comme connecté
+    console.warn('⚠️ Token expiré - nettoyage');
+    localStorage.removeItem('token');
+    
+    // Essayer de rafraîchir le token si Firebase user existe
     if (auth.currentUser) {
-      console.log('⚠️ 401 reçu mais Firebase indique utilisateur connecté - Token peut-être expiré côté serveur');
-      // Essayer de rafraîchir le token
       try {
         const newToken = await auth.currentUser.getIdToken(true);
         localStorage.setItem('token', newToken);
-        console.log('🔄 Token rafraîchi suite à 401');
-
-        // Relancer la requête avec le nouveau token
-        const retryHeaders = {
-          ...defaultHeaders,
-          Authorization: `Bearer ${newToken}`
-        };
-
+        
+        // Relancer la requête
         return await fetch(url, {
           ...options,
-          headers: retryHeaders
+          headers: {
+            ...defaultHeaders,
+            Authorization: `Bearer ${newToken}`
+          }
         });
       } catch (refreshError) {
-        console.error('❌ Échec du refresh du token:', refreshError);
+        console.error('❌ Échec refresh token:', refreshError);
       }
     }
-
-    // Si on arrive ici, c'est vraiment une déconnexion
-    localStorage.removeItem('token');
-    if (window.location.pathname !== '/login') {
-      alert('Votre session a expiré. Veuillez vous reconnecter.');
-      window.location.href = '/login';
-    }
+    
+    throw new Error('Session expirée');
   }
 
   return response;
