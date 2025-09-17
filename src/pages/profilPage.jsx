@@ -7,15 +7,15 @@ import { logout } from "../services/auth";
 
 // Composant principal pour la page de profil utilisateur
 const ProfilePage = () => {
-   const navigate = useNavigate(); // Hook pour naviguer entre les pages
-   const { cagnottes, contributions, reset } = useCagnotteStore();
+  const navigate = useNavigate(); // Hook pour naviguer entre les pages
+  const { cagnottes, contributions, reset } = useCagnotteStore();
 
-   // Gestion des états locaux pour les onglets actifs et les données utilisateur
-   const [activeTab, setActiveTab] = useState("soutenues"); // Onglet actif (projets soutenus ou créés)
-   const [userData, setUserData] = useState(null);
-   const [loading, setLoading] = useState(true);
-   const [error, setError] = useState(null);
-  
+  // Gestion des états locaux pour les onglets actifs et les données utilisateur
+  const [activeTab, setActiveTab] = useState("soutenues"); // Onglet actif (projets soutenus ou créés)
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [isEditing, setIsEditing] = useState(false); // État d'édition
   const [editField, setEditField] = useState(""); // Champ en cours d'édition
   const [editValue, setEditValue] = useState(""); // Nouvelle valeur pour le champ édité
@@ -175,7 +175,7 @@ const ProfilePage = () => {
             </button>
             <button className="p-2 rounded-full hover:bg-gray-100" onClick={() => navigate("/dashboard")}>
               <FiGrid variant="primary" />
-              </button>
+            </button>
           </div>
         </div>
       </header>
@@ -190,30 +190,30 @@ const ProfilePage = () => {
                 {getInitial()}
               </div>
             </div>
-            
+
             <h2 className="text-xl font-bold text-center text-gray-800 mb-1">{userData.name}</h2>
             <p className="text-gray-600 text-center text-sm mb-4">
               Membre depuis {userData.memberSince} - {userData.location}
             </p>
-            
+
             <div className="space-y-2">
               {/* Liens de navigation */}
               <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
                 <FiSettings className="text-gray-500" />
                 <span>Compte</span>
               </button>
-              
+
               <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
                 <FiBell className="text-gray-500" />
                 <span>Notifications</span>
               </button>
-              
+
               <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
                 <FiShield className="text-gray-500" />
                 <span>Sécurité</span>
               </button>
-              
-              
+
+
               <button
                 className="w-full flex items-center space-x-2 p-3 rounded-lg text-red-600 hover:bg-red-50 transition mt-4"
                 onClick={async () => {
@@ -243,19 +243,19 @@ const ProfilePage = () => {
           {/* Section des informations utilisateur */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Informations du compte</h2>
-            
+
             {/* Section pour modifier le nom */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm font-medium text-gray-600">Nom complet</label>
-                <button 
+                <button
                   onClick={() => handleEdit('name', userData.name)}
                   className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
                 >
                   <FiEdit className="mr-1" /> Modifier
                 </button>
               </div>
-              
+
               {isEditing && editField === 'name' ? (
                 <div className="flex space-x-2">
                   <input
@@ -264,13 +264,13 @@ const ProfilePage = () => {
                     onChange={(e) => setEditValue(e.target.value)}
                     className="flex-1 p-2 border rounded-md"
                   />
-                  <button 
+                  <button
                     onClick={handleSave}
                     className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                   >
                     Sauvegarder
                   </button>
-                  <button 
+                  <button
                     onClick={handleCancel}
                     className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                   >
@@ -281,7 +281,7 @@ const ProfilePage = () => {
                 <p className="text-gray-800">{userData.name}</p>
               )}
             </div>
-            
+
             {/* Email (non modifiable) */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
@@ -289,19 +289,19 @@ const ProfilePage = () => {
               </div>
               <p className="text-gray-800">{userData.email}</p>
             </div>
-            
+
             {/* Téléphone */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm font-medium text-gray-600">Téléphone</label>
-                <button 
+                <button
                   onClick={() => handleEdit('phone', userData.phone)}
                   className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
                 >
                   <FiEdit className="mr-1" /> Modifier
                 </button>
               </div>
-              
+
               {isEditing && editField === 'phone' ? (
                 <div className="flex space-x-2">
                   <input
@@ -310,13 +310,13 @@ const ProfilePage = () => {
                     onChange={(e) => setEditValue(e.target.value)}
                     className="flex-1 p-2 border rounded-md"
                   />
-                  <button 
+                  <button
                     onClick={handleSave}
                     className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                   >
                     Sauvegarder
                   </button>
-                  <button 
+                  <button
                     onClick={handleCancel}
                     className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                   >
@@ -327,12 +327,12 @@ const ProfilePage = () => {
                 <p className="text-gray-800">{userData.phone}</p>
               )}
             </div>
-            
+
             {/* Modifier le mot de passe */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm font-medium text-gray-600">Mot de passe</label>
-                <button 
+                <button
                   onClick={() => handleEdit('password', '')}
                   className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
                 >
@@ -348,13 +348,13 @@ const ProfilePage = () => {
                     className="flex-1 p-2 border rounded-md"
                     placeholder="Nouveau mot de passe"
                   />
-                  <button 
+                  <button
                     onClick={handleSave}
                     className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                   >
                     Sauvegarder
                   </button>
-                  <button 
+                  <button
                     onClick={handleCancel}
                     className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
                   >
@@ -365,14 +365,14 @@ const ProfilePage = () => {
                 <p className="text-gray-800">•••••••••••</p>
               )}
             </div>
-            
+
             {/* Notifications */}
             <div className="flex justify-between items-center">
               <div>
                 <label className="text-sm font-medium text-gray-600">Notifications</label>
                 <p className="text-gray-800">{userData.notifications ? "Activé" : "Désactivé"}</p>
               </div>
-              <button 
+              <button
                 onClick={toggleNotifications}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full ${userData.notifications ? 'bg-indigo-600' : 'bg-gray-200'}`}
               >
@@ -384,31 +384,71 @@ const ProfilePage = () => {
           {/* Section des projets */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Mes cagnottes</h2>
-            
-            {/* Onglets pour basculer entre projets soutenus et créés */}
+
+            {/* Onglets pour basculer entre projets soutenus, créés et transactions */}
             <div className="flex space-x-6 border-b border-gray-200 mb-6">
               <button
-                className={`pb-2 font-semibold ${
-                  activeTab === "soutenues"
+                className={`pb-2 font-semibold ${activeTab === "soutenues"
                     ? "text-indigo-600 border-b-2 border-indigo-600"
                     : "text-gray-500"
-                }`}
+                  }`}
                 onClick={() => setActiveTab("soutenues")}
               >
                 Soutenues
               </button>
+
               <button
-                className={`pb-2 font-semibold ${
-                  activeTab === "creees"
+                className={`pb-2 font-semibold ${activeTab === "creees"
                     ? "text-indigo-600 border-b-2 border-indigo-600"
                     : "text-gray-500"
-                }`}
+                  }`}
                 onClick={() => setActiveTab("creees")}
               >
-                Crées
+                Créées
+              </button>
+
+              <button
+                className="pb-2 font-semibold text-gray-500 hover:text-indigo-600"
+                onClick={() => navigate("/transactions")}
+              >
+                Transactions
               </button>
             </div>
 
+            {activeTab === "transactions" && (
+              <div className="space-y-4">
+                {contributions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">Aucune transaction pour l’instant.</p>
+                    <button
+                      className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                      onClick={() => navigate("/explorePage")}
+                    >
+                      Faire une première contribution
+                    </button>
+                  </div>
+                ) : (
+                  contributions.slice(0, 1).map((t) => (
+                    <div
+                      key={t.id}
+                      className="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
+                    >
+                      <h3 className="text-lg font-bold text-gray-800 mb-1">
+                        Transaction #{t.id}
+                      </h3>
+                      <p className="text-gray-600">Montant : {t.amount} {t.currency}</p>
+                      <p className="text-gray-600">Date : {new Date(t.createdAt).toLocaleString()}</p>
+                      <button
+                        className="text-indigo-600 font-semibold hover:underline mt-2"
+                        onClick={() => navigate("/transactions")}
+                      >
+                        Voir tout l’historique
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
             {/* Contenu dynamique des projets */}
             <div>
               {activeTab === "soutenues" && (
@@ -471,13 +511,12 @@ const ProfilePage = () => {
                           <p className="text-sm text-indigo-600 font-medium">
                             {projet.type === 'public' ? 'Publique' : 'Privée'}
                           </p>
-                          <span className={`text-sm font-semibold px-2 py-1 rounded ${
-                            projet.status === 'active' ? 'bg-green-100 text-green-800' :
+                          <span className={`text-sm font-semibold px-2 py-1 rounded ${projet.status === 'active' ? 'bg-green-100 text-green-800' :
                             projet.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                              'bg-gray-100 text-gray-800'
+                            }`}>
                             {projet.status === 'active' ? 'Actif' :
-                             projet.status === 'pending' ? 'En attente' : projet.status}
+                              projet.status === 'pending' ? 'En attente' : projet.status}
                           </span>
                         </div>
                         <h3 className="text-lg font-bold text-gray-800">{projet.title}</h3>
