@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
-import { FaArrowLeft, FaHome, FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt } from "react-icons/fa";
+import { FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt, FaWallet } from "react-icons/fa";
 import { useAuth } from "../contexts/AuthContext";
 import EmailVerificationBanner from "../components/EmailVerificationBanner";
 import api from "../services/api";
@@ -69,7 +69,7 @@ const Dashboard = () => {
         {/* Navigation principale */}
         <nav className="hidden md:flex flex-1 mx-20">
           <ul className="flex justify-between w-full font-medium">
-            
+
             <li>
               <button
                 onClick={() => navigate("/explorePage")}
@@ -94,6 +94,17 @@ const Dashboard = () => {
                 <FaBell className="text-green-200 opacity-60" /> Notifications
               </button>
             </li>
+
+            <li>
+              <button
+                onClick={() => navigate("/transactions")}
+                className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
+              >
+                <FaWallet className="text-green-200 opacity-60" /> Transactions
+              </button>
+            </li>
+
+
             <li className="relative group">
               <button
                 className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
@@ -211,10 +222,10 @@ const Dashboard = () => {
           <ResponsiveContainer width="100%" height={250}>
 
             <BarChart data={cagnottes}>
-              <XAxis dataKey="title"  />
+              <XAxis dataKey="title" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="currentAmount"  fill={colors.primary} />
+              <Bar dataKey="currentAmount" fill={colors.primary} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -242,7 +253,7 @@ const Dashboard = () => {
             </PieChart>
           </ResponsiveContainer>
         </div>
-        
+
       </div>
 
       {/* Mes cagnottes */}
@@ -308,7 +319,7 @@ const Dashboard = () => {
                   onClick={async (e) => {
                     e.stopPropagation();
                     if (!window.confirm(`Supprimer la cagnotte "${c.title}" ?`)) return;
-                    
+
                     try {
                       // Appel API pour supprimer la cagnotte
                       await api.delete(`/pulls/${c.id}`);

@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 
+
 const ContributePage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { addContribution, fetchAllCagnottes, fetchUserContributions } = useCagnotteStore();
 
   const [cagnotte, setCagnotte] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
 
+  
   const [amount, setAmount] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [message, setMessage] = useState("");
@@ -36,6 +40,7 @@ const ContributePage = () => {
 
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [mobileOption, setMobileOption] = useState("tmoney");
+
 
   // Charger les données de la cagnotte
   useEffect(() => {
@@ -213,6 +218,7 @@ const ContributePage = () => {
     } finally { setSubmitting(false); }
   };
 
+
   return (
     <div className="p-6 mx-auto" style={{ maxWidth: "750px", fontFamily: "Roboto, sans-serif" }}>
       {/* Bouton retour */}
@@ -305,11 +311,11 @@ const ContributePage = () => {
         </button>
         {submitError && <p style={{ color: "#dc2626", textAlign: "center", marginTop: "0.5rem" }}>{submitError}</p>}
       </form>
-
       {/* Affichage du reçu */}
       {receipt && (
         <div className="mt-6 rounded shadow" style={{ backgroundColor: "#f0fdf4", borderLeft: "4px solid #4CA260", padding: "1.5rem" }}>
-          <h2 className="text-2xl font-bold mb-2">Reçu de paiement</h2>
+          <h2 className="text-2xl font-bold mb-2">Contribution réussie 🎉</h2>
+          <p>Votre contribution a été enregistrée avec succès.</p>
           <p><strong>Cagnotte :</strong> {receipt.cagnotteTitle}</p>
           <p><strong>Contributeur :</strong> {receipt.userName}</p>
           <p><strong>Montant :</strong> {receipt.contribution.amount} {cagnotte.currency}</p>
@@ -319,13 +325,25 @@ const ContributePage = () => {
           <p><strong>Statut :</strong> {receipt.transaction.status}</p>
           <p><strong>Référence fournisseur :</strong> {receipt.transaction.providerReference}</p>
           <p><strong>Date :</strong> {new Date(receipt.contribution.createdAt).toLocaleString()}</p>
+
+          {/* Bouton pour rediriger vers l’historique */}
+          <div className="mt-4">
+            <button
+              onClick={() => navigate("/transactions")}
+              className="w-full py-3 text-white font-semibold rounded-md transition bg-primary hover:opacity-90"
+            >
+              Voir dans mes transactions
+            </button>
+          </div>
         </div>
       )}
+
+
     </div>
   );
 
 }
-;
+  ;
 
 
 export default ContributePage;
