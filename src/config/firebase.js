@@ -19,10 +19,12 @@ export const auth = getAuth(app);
 
 // 🔧 Configuration des numéros de test Firebase
 if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-  // Configurer les numéros de test directement
+ //Configurer les numéros de test directement
   auth.settings = {
     appVerificationDisabledForTesting: true
   };
+  
+
   
   // Configurer les numéros de test avec leurs codes
   auth.settings.testPhoneNumbers = {

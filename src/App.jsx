@@ -17,15 +17,14 @@ import PaymentResult from "./pages/PaymentResult";
 import NotificationsPage from "./pages/Notifications";
 import KycForm from "./pages/KycForm";
 import Transactions from "./pages/Transactions";
-import OTPTestPage from "./pages/OTPTestPage";
 import { useAuth } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Breadcrumb from "./components/Breadcrumb";
 
 // Importer les utilitaires de debug en développement
-if (process.env.NODE_ENV === 'development') {
-  import('./utils/authDebug');
-}
+//if (process.env.NODE_ENV === 'development') {
+  //import('./utils/authDebug');
+//}
 
 
 
@@ -143,7 +142,7 @@ export default function App() {
           <Transactions />
         </AuthGuard>
       } />
-      <Route path="/otp-test" element={<OTPTestPage />} />
+      
 
     </Routes>
    </>
