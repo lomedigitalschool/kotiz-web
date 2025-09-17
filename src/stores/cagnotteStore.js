@@ -261,58 +261,92 @@ export const useCagnotteStore = create((set, get) => ({
     });
   },
 
-  // récup contributions de l'user
+  // récup contributions de l'user avec API
   fetchUserContributions: async () => {
     set({ loading: true, error: null });
 
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        set({ loading: false, error: 'Utilisateur non authentifié' });
+        console.warn('⚠️ Pas de token - chargement des contributions locales');
+        const stored = loadFromStorage("contributions", []);
+        set({ contributions: stored, loading: false });
         return;
       }
 
-      // Récupérer les contributions depuis localStorage (elles sont stockées localement)
-      const allContributions = loadFromStorage("contributions", []);
-      const userContributions = allContributions.filter(c => c.userId);
-      set({ contributions: userContributions, loading: false });
-      localStorage.setItem("contributions", JSON.stringify(userContributions));
+      try {
+        // Essayer de récupérer depuis l'API
+        const response = await apiFetch(`http://localhost:5000/api/v1/contributions/my`);
+        
+        if (response.ok) {
+          const apiContributions = await response.json();
+          console.log('✅ Contributions récupérées depuis l\'API:', apiContributions.length);
+          
+          // Fusionner avec les contributions locales
+          const localContributions = loadFromStorage("contributions", []);
+          const allContributions = [...apiContributions, ...localContributions];
+          
+          // Supprimer les doublons par ID
+          const uniqueContributions = allContributions.filter((contrib, index, self) => 
+            index === self.findIndex(c => c.id === contrib.id)
+          );
+          
+          set({ contributions: uniqueContributions, loading: false });
+          localStorage.setItem("contributions", JSON.stringify(uniqueContributions));
+          return;
+        }
+      } catch (apiError) {
+        console.warn('⚠️ API non disponible, utilisation des données locales:', apiError.message);
+      }
+
+      // Fallback vers localStorage
+      const stored = loadFromStorage("contributions", []);
+      set({ contributions: stored, loading: false });
+      
     } catch (error) {
-      console.error('Erreur lors de la récupération des contributions:', error);
+      console.error('❌ Erreur lors de la récupération des contributions:', error);
       const stored = loadFromStorage("contributions", []);
       set({ contributions: stored, loading: false, error: error.message });
     }
   },
 
-  // ajout contribution
+  // ajout contribution avec mise à jour complète
   addContribution: (contribution) => {
     set((state) => {
       const cagnotte = state.cagnottes.find(c => c.id === contribution.cagnotteId);
+      
+      // Créer la nouvelle contribution avec toutes les informations nécessaires
+      const newContribution = {
+        ...contribution,
+        id: contribution.id || Date.now(),
+        cagnotteTitle: cagnotte?.title || "Cagnotte inconnue",
+        createdAt: contribution.createdAt || new Date().toISOString(),
+        currency: contribution.currency || cagnotte?.currency || 'XOF',
+        user: contribution.user || contribution.contributorName || "Anonyme",
+        anonymous: contribution.anonymous || false
+      };
 
-      const updatedContributions = [
-        ...state.contributions,
-        {
-          ...contribution,
-          cagnotteTitle: cagnotte?.title || "Cagnotte inconnue"
-        }
-      ];
+      const updatedContributions = [...state.contributions, newContribution];
 
       // Mettre à jour la cagnotte courante si elle correspond
       const updatedCagnotte = state.cagnotte?.id === contribution.cagnotteId ? {
         ...state.cagnotte,
         currentAmount: (parseFloat(state.cagnotte?.currentAmount) || 0) + parseFloat(contribution.amount),
-        contributors: [...(state.cagnotte?.contributors || []), contribution.user || "Anonyme"],
+        contributors: [...(state.cagnotte?.contributors || []), newContribution.user],
       } : state.cagnotte;
 
-      // Mettre à jour la cagnotte dans la liste principale (pour Explorer)
+      // Mettre à jour la cagnotte dans la liste principale
       const updatedCagnottes = state.cagnottes.map(c => {
         if (c.id === contribution.cagnotteId) {
           const newCurrentAmount = (parseFloat(c.currentAmount) || 0) + parseFloat(contribution.amount);
+          const contributorsList = [...(c.contributors || []), newContribution.user];
+          
           return {
             ...c,
             currentAmount: newCurrentAmount,
-            contributors: [...(c.contributors || []), contribution.user || "Anonyme"],
-            // Recalculer le pourcentage pour les tests
+            collectedAmount: newCurrentAmount, // Pour la compatibilité
+            contributors: contributorsList,
+            contributorsCount: contributorsList.length,
             progressPercentage: c.goalAmount > 0 ? Math.min((newCurrentAmount / parseFloat(c.goalAmount)) * 100, 100) : 0
           };
         }
@@ -322,12 +356,12 @@ export const useCagnotteStore = create((set, get) => ({
       // Envoyer les notifications
       if (cagnotte) {
         sendNotification({
-          userId: cagnotte.creatorId || 1,
+          userId: cagnotte.creatorId || cagnotte.userId || 1,
           type: "newContribution",
           data: {
             amount: contribution.amount,
             cagnotteTitle: cagnotte.title,
-            user: contribution.user || "Anonyme",
+            user: newContribution.user,
             message: contribution.message || "",
           }
         });
@@ -353,8 +387,9 @@ export const useCagnotteStore = create((set, get) => ({
       }
       localStorage.setItem("cagnottes", JSON.stringify(updatedCagnottes));
 
-      console.log(`💰 Contribution ajoutée: ${contribution.amount} à cagnotte ${contribution.cagnotteId}`);
-      console.log(`📊 Nouveau montant: ${updatedCagnottes.find(c => c.id === contribution.cagnotteId)?.currentAmount}`);
+      console.log(`💰 Contribution ajoutée: ${contribution.amount} FCFA à "${cagnotte?.title}"`);
+      console.log(`📊 Nouveau montant collecté: ${updatedCagnottes.find(c => c.id === contribution.cagnotteId)?.currentAmount} FCFA`);
+      console.log(`👥 Nombre de contributeurs: ${updatedCagnottes.find(c => c.id === contribution.cagnotteId)?.contributorsCount}`);
 
       return {
         contributions: updatedContributions,
@@ -362,6 +397,21 @@ export const useCagnotteStore = create((set, get) => ({
         cagnottes: updatedCagnottes
       };
     });
+  },
+
+  // Fonction pour forcer le rafraîchissement des données
+  refreshAllData: async () => {
+    console.log('🔄 [CagnotteStore] Rafraîchissement complet des données');
+    
+    try {
+      await Promise.all([
+        get().fetchUserCagnottes(),
+        get().fetchUserContributions()
+      ]);
+      console.log('✅ [CagnotteStore] Données rafraîchies avec succès');
+    } catch (error) {
+      console.error('❌ [CagnotteStore] Erreur lors du rafraîchissement:', error);
+    }
   },
 
   // fonction de reset pour la déconnexion

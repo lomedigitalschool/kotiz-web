@@ -157,12 +157,25 @@ const ContributePage = () => {
 
       // Rafraîchir les données depuis le serveur pour synchronisation
       try {
+        console.log('🔄 Rafraîchissement des données après contribution');
+        
+        // Rafraîchir toutes les cagnottes pour la page explorer
         await fetchAllCagnottes();
+        
+        // Rafraîchir les contributions utilisateur pour le dashboard et transactions
         if (!isGuest) {
           await fetchUserContributions();
         }
+        
+        // Forcer le rafraîchissement du store complet
+        const { refreshAllData } = useCagnotteStore.getState();
+        if (refreshAllData) {
+          await refreshAllData();
+        }
+        
+        console.log('✅ Données rafraîchies avec succès');
       } catch (refreshError) {
-        console.error('Erreur lors du rafraîchissement des données:', refreshError);
+        console.error('❌ Erreur lors du rafraîchissement des données:', refreshError);
       }
 
       setReceipt({

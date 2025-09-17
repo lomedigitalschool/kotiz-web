@@ -19,8 +19,18 @@ export default function ExplorerPage() {
 
   // On récupère toutes les cagnottes au chargement de la page
   useEffect(() => {
-    fetchAllCagnottes().finally(() => setLoading(false));
-  }, [fetchAllCagnottes]);
+    const loadCagnottes = async () => {
+      try {
+        await fetchAllCagnottes();
+      } catch (error) {
+        console.error('Erreur lors du chargement des cagnottes:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadCagnottes();
+  }, []);
 
   // Mise à jour automatique après les contributions
   useEffect(() => {
@@ -37,15 +47,28 @@ export default function ExplorerPage() {
 
   // Fonction pour filtrer et trier les cagnottes
   const getFilteredCagnottes = () => {
+    if (!Array.isArray(cagnottes)) return [];
+    
     return cagnottes
-      .filter((c) => c.title.toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter((c) => {
+        if (!c || !c.title) return false;
+        const title = c.title?.toLowerCase() || '';
+        const search = searchTerm?.toLowerCase() || '';
+        return title.includes(search);
+      })
       .filter((c) => (filterType ? c.type === filterType : true))
       .sort((a, b) => {
         if (sortOption === "popular") {
-          return b.currentAmount / b.goalAmount - a.currentAmount / a.goalAmount;
+          const aRatio = (a.currentAmount || 0) / (a.goalAmount || 1);
+          const bRatio = (b.currentAmount || 0) / (b.goalAmount || 1);
+          return bRatio - aRatio;
         }
-        if (sortOption === "amount") return b.currentAmount - a.currentAmount;
-        if (sortOption === "date") return new Date(b.createdAt) - new Date(a.createdAt);
+        if (sortOption === "amount") return (b.currentAmount || 0) - (a.currentAmount || 0);
+        if (sortOption === "date") {
+          const aDate = new Date(a.createdAt || 0);
+          const bDate = new Date(b.createdAt || 0);
+          return bDate - aDate;
+        }
         return 0;
       });
   };
