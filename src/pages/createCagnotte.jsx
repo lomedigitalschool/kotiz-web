@@ -142,6 +142,15 @@ const CreerCagnotte = () => {
       if (response.data) {
         // Mettre à jour le store local
         useCagnotteStore.getState().addCagnotte(response.data);
+        
+        // Rafraîchir les données utilisateur pour le dashboard
+        try {
+          await useCagnotteStore.getState().fetchUserCagnottes();
+          await useCagnotteStore.getState().fetchUserContributions();
+          console.log('✅ Données utilisateur rafraîchies après création de cagnotte');
+        } catch (refreshError) {
+          console.warn('⚠️ Erreur lors du rafraîchissement:', refreshError);
+        }
 
         alert("🎉 Cagnotte créée avec succès !");
 

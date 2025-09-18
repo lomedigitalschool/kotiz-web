@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
-import { FaArrowLeft, FaHome, FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt } from "react-icons/fa";
+import { FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt, FaWallet } from "react-icons/fa";
 import { useAuth } from "../contexts/AuthContext";
 import EmailVerificationBanner from "../components/EmailVerificationBanner";
 import api from "../services/api";
@@ -17,35 +17,68 @@ const Dashboard = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
-    // Le chargement des données est maintenant géré par AuthContext
-    // Ce useEffect ne fait que nettoyer les anciennes données mockées
-    useCagnotteStore.getState().cleanMockData();
-  }, []);
+    // Charger les données utilisateur au montage du composant
+    const loadUserData = async () => {
+      try {
+        console.log('🔄 Dashboard: Chargement des données utilisateur');
+        useCagnotteStore.getState().cleanMockData();
+        await fetchUserCagnottes();
+        await fetchUserContributions();
+        console.log('✅ Dashboard: Données utilisateur chargées');
+      } catch (error) {
+        console.error('❌ Dashboard: Erreur lors du chargement:', error);
+      }
+    };
+    
+    loadUserData();
+  }, [fetchUserCagnottes, fetchUserContributions]);
+  
+  // Rafraîchir les données quand on revient sur la page
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('🔄 Dashboard: Rafraîchissement au focus');
+      fetchUserCagnottes();
+      fetchUserContributions();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchUserCagnottes, fetchUserContributions]);
 
   // Calculer les statistiques utilisateur
   useEffect(() => {
-    if (cagnottes.length > 0) {
-      const totalCollected = cagnottes.reduce((sum, c) => sum + (parseFloat(c.currentAmount) || 0), 0);
-      const activeCount = cagnottes.filter(c => c.status === 'active' || c.status === 'pending' || !c.status).length;
-      const totalContributors = new Set(contributions.map(c => c.userId)).size;
-
+    const calculateStats = () => {
+      if (!Array.isArray(cagnottes) || !Array.isArray(contributions)) {
+        setUserStats({ totalCollected: 0, activeCount: 0, totalContributors: 0 });
+        return;
+      }
+      
+      const totalCollected = cagnottes.reduce((sum, c) => {
+        const amount = parseFloat(c.currentAmount || c.collectedAmount || 0);
+        return sum + amount;
+      }, 0);
+      
+      const activeCount = cagnottes.filter(c => 
+        c.status === 'active' || c.status === 'pending' || !c.status
+      ).length;
+      
+      // Compter les contributeurs uniques à travers toutes les cagnottes
+      const allContributorIds = new Set();
+      contributions.forEach(c => {
+        if (c.userId) allContributorIds.add(c.userId);
+      });
+      
       const stats = {
         totalCollected,
         activeCount,
-        totalContributors
+        totalContributors: allContributorIds.size
       };
 
-      console.log('Statistiques calculées:', stats);
-      console.log('Cagnottes:', cagnottes.map(c => ({ id: c.id, status: c.status, currentAmount: c.currentAmount })));
-
+      console.log('📊 Statistiques calculées:', stats);
       setUserStats(stats);
-    } else {
-      setUserStats({
-        totalCollected: 0,
-        activeCount: 0,
-        totalContributors: 0
-      });
-    }
+    };
+    
+    calculateStats();
   }, [cagnottes, contributions]);
 
   if (loading) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>Chargement...</p>;
@@ -69,7 +102,7 @@ const Dashboard = () => {
         {/* Navigation principale */}
         <nav className="hidden md:flex flex-1 mx-20">
           <ul className="flex justify-between w-full font-medium">
-            
+
             <li>
               <button
                 onClick={() => navigate("/explorePage")}
@@ -94,6 +127,17 @@ const Dashboard = () => {
                 <FaBell className="text-green-200 opacity-60" /> Notifications
               </button>
             </li>
+
+            <li>
+              <button
+                onClick={() => navigate("/transactions")}
+                className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
+              >
+                <FaWallet className="text-green-200 opacity-60" /> Transactions
+              </button>
+            </li>
+
+
             <li className="relative group">
               <button
                 className="flex items-center gap-1 text-black hover:text-green-600 transition-colors font-semibold"
@@ -188,62 +232,67 @@ const Dashboard = () => {
 
         <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Montants collectés</p>
-          <p className="text-2xl font-bold">{(userStats.totalCollected || 0).toLocaleString()} FCFA  </p>
+          <p className="text-2xl font-bold text-green-600">{(userStats.totalCollected || 0).toLocaleString()} FCFA</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow   p-4 text-center">
+        <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Cagnottes actives</p>
-          <p className="text-2xl font-bold">  {userStats.activeCount || 0}</p>
+          <p className="text-2xl font-bold text-blue-600">{userStats.activeCount || 0}</p>
         </div>
 
-        <div className="bg-white rounded- xl shadow p-4 text-center">
+        <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Nombre de contributeurs</p>
-          <p className="text-2xl font-bold">{userStats.totalContributors || 0}  </p>
+          <p className="text-2xl font-bold text-purple-600">{userStats.totalContributors || 0}</p>
         </div>
 
       </div>
 
       {/* Graphiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      {Array.isArray(cagnottes) && cagnottes.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="text-xl font-bold mb-2">Montants collectés par cagnotte</h2>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={cagnottes.map(c => ({
+                title: c.title || 'Sans titre',
+                currentAmount: parseFloat(c.currentAmount || 0)
+              }))}>
+                <XAxis dataKey="title" />
+                <YAxis />
+                <Tooltip formatter={(value) => [`${value.toLocaleString()} FCFA`, 'Montant']} />
+                <Bar dataKey="currentAmount" fill={colors.primary} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
 
-        <div className="bg-white rounded-xl shadow p-4">
-          <h2 className="text-xl font-bold mb-2">Montants collectés par cagnotte</h2>
-          <ResponsiveContainer width="100%" height={250}>
-
-            <BarChart data={cagnottes}>
-              <XAxis dataKey="title"  />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="currentAmount"  fill={colors.primary} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="text-xl font-bold mb-2">Répartition des contributions</h2>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={cagnottes.filter(c => (c.currentAmount || 0) > 0).map(c => ({
+                    title: c.title || 'Sans titre',
+                    currentAmount: parseFloat(c.currentAmount || 0)
+                  }))}
+                  dataKey="currentAmount"
+                  nameKey="title"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill={colors.secondary}
+                  label={(entry) => `${entry.title}: ${entry.currentAmount.toLocaleString()}`}
+                >
+                  {cagnottes.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Legend />
+                <Tooltip formatter={(value) => [`${value.toLocaleString()} FCFA`, 'Montant']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-
-        <div className="bg-white rounded-xl shadow p-4">
-          <h2 className="text-xl font-bold mb-2">Répartition des contributions</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={cagnottes}
-                dataKey="currentAmount"
-                nameKey="title"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                fill={colors.secondary}
-                label
-              >
-                {cagnottes.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Legend />
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        
-      </div>
+      )}
 
       {/* Mes cagnottes */}
       <h2 className="text-2xl font-bold mb-4">Mes Cagnottes</h2>
@@ -308,7 +357,7 @@ const Dashboard = () => {
                   onClick={async (e) => {
                     e.stopPropagation();
                     if (!window.confirm(`Supprimer la cagnotte "${c.title}" ?`)) return;
-                    
+
                     try {
                       // Appel API pour supprimer la cagnotte
                       await api.delete(`/pulls/${c.id}`);

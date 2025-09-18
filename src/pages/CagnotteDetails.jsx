@@ -8,10 +8,7 @@ import { useAuth } from "../hooks/useAuth";
 import { FaFacebook, FaWhatsapp, FaEnvelope } from "react-icons/fa";
 import { FiShare2 } from "react-icons/fi";
 
-
-
 const ITEMS_PER_PAGE = 3;
-
 
 const CagnotteDetails = () => {
   const { id } = useParams();
@@ -332,19 +329,11 @@ const CagnotteDetails = () => {
               </div>
             )}
           </div>
-          {/* Partage et réseaux dans la même div */}
+          {/* Partage et réseaux */}
           <div className="flex flex-col md:flex-row items-center gap-4 mt-2 p-4 border rounded-lg bg-gray-50">
-
-            {/* QR Code */}
             <QRCode value={shareLink} size={120} />
-
-            {/* Partie droite : lien + actions */}
             <div className="flex flex-col items-start gap-2 ml-4 relative">
-
-              {/* Lien à copier */}
               <p className="break-all text-gray-700">{shareLink}</p>
-
-              {/* Bouton copier */}
               <button
                 onClick={handleCopyLink}
                 className="px-6 py-2 text-white rounded-md hover:opacity-90 transition"
@@ -353,49 +342,46 @@ const CagnotteDetails = () => {
                 Copier le lien
               </button>
 
-              {/* Icône de partage */}
-              <button
-                onClick={() => setShowShareOptions(!showShareOptions)}
-                className="mt-2 p-2 rounded-md hover:bg-gray-200 transition flex items-center gap-1"
-                title="Partager via réseaux"
-              >
-                <FiShare2 size={20} />
-                <span className="text-gray-700 font-medium">Partager</span>
-              </button>
-
-              {/* Réseaux sociaux */}
-              {showShareOptions && (
-                <div className="flex gap-3 mt-2">
-                  <button
-                    onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareLink)}`, "_blank")}
-                    className="p-2 rounded bg-green-500 text-white text-xl"
-                    title="WhatsApp"
-                  >
-                    <FaWhatsapp />
-                  </button>
-                  <button
-                    onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`, "_blank")}
-                    className="p-2 rounded bg-blue-700 text-white text-xl"
-                    title="Facebook"
-                  >
-                    <FaFacebook />
-                  </button>
-                  <button
-                    onClick={() => window.location.href = `mailto:?subject=Découvrez cette cagnotte&body=${encodeURIComponent(shareLink)}`}
-                    className="p-2 rounded bg-gray-700 text-white text-xl"
-                    title="Email"
-                  >
-                    <FaEnvelope />
-                  </button>
+              {/* Bouton + Réseaux sur la même ligne */}
+              <div className="flex items-center gap-3 mt-2">
+                {/* Indicateur visuel (non cliquable) */}
+                <div
+                  className="p-2 rounded-md flex items-center gap-1 bg-gray-100"
+                  title="Partager via réseaux"
+                >
+                  <FiShare2 size={20} />
+                  <span className="text-gray-700 font-medium">Partager</span>
                 </div>
-              )
-              }
+
+                {/* Boutons réseaux (cliquables) */}
+                <button
+                  onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareLink)}`, "_blank")}
+                  className="p-2 rounded bg-green-500 text-white text-xl hover:opacity-80 transition"
+                  title="WhatsApp"
+                >
+                  <FaWhatsapp />
+                </button>
+                <button
+                  onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`, "_blank")}
+                  className="p-2 rounded bg-blue-700 text-white text-xl hover:opacity-80 transition"
+                  title="Facebook"
+                >
+                  <FaFacebook />
+                </button>
+                <button
+                  onClick={() => window.location.href = `mailto:?subject=Découvrez cette cagnotte&body=${encodeURIComponent(shareLink)}`}
+                  className="p-2 rounded bg-gray-700 text-white text-xl hover:opacity-80 transition"
+                  title="Email"
+                >
+                  <FaEnvelope />
+                </button>
+              </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
-
   );
 };
 
