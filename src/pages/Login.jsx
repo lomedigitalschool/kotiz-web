@@ -7,7 +7,7 @@ import {
   RecaptchaVerifier
 } from "firebase/auth";
 import { auth } from "../config/firebase";
-import { FaArrowLeft } from "react-icons/fa";
+import { FaArrowLeft, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 
 export const Login = () => {
@@ -19,6 +19,7 @@ export const Login = () => {
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // États d'interface
   const [loading, setLoading] = useState(false);
@@ -108,6 +109,12 @@ export const Login = () => {
       return;
     }
 
+    // Vérifier la connectivité réseau
+    if (!navigator.onLine) {
+      setError("Pas de connexion internet. Vérifiez votre connexion et réessayez.");
+      return;
+    }
+
     const loginType = detectLoginType(identifier);
 
     if (loginType === 'email') {
@@ -117,8 +124,23 @@ export const Login = () => {
         return;
       }
 
-      const userCredential = await signInWithEmailAndPassword(auth, identifier, password);
-      await handleSuccessfulLogin(userCredential.user);
+      // Retry logic pour les erreurs réseau
+      let retries = 2;
+      while (retries > 0) {
+        try {
+          const userCredential = await signInWithEmailAndPassword(auth, identifier, password);
+          await handleSuccessfulLogin(userCredential.user);
+          return;
+        } catch (error) {
+          if (error.code === 'auth/network-request-failed' && retries > 1) {
+            console.log(`Tentative de reconnexion... (${2 - retries + 1}/2)`);
+            retries--;
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Attendre 1s
+            continue;
+          }
+          throw error;
+        }
+      }
 
     } else {
       // Connexion par téléphone - envoyer OTP
@@ -132,10 +154,24 @@ export const Login = () => {
 
       setIsPhoneLogin(true);
 
-      // Envoyer l'OTP
-      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, window.recaptchaVerifier);
-      setConfirmationResult(confirmation);
-      setStep(2); // Passer à l'étape 2
+      // Envoyer l'OTP avec retry
+      let retries = 2;
+      while (retries > 0) {
+        try {
+          const confirmation = await signInWithPhoneNumber(auth, formattedPhone, window.recaptchaVerifier);
+          setConfirmationResult(confirmation);
+          setStep(2);
+          return;
+        } catch (error) {
+          if (error.code === 'auth/network-request-failed' && retries > 1) {
+            console.log(`Tentative de reconnexion OTP... (${2 - retries + 1}/2)`);
+            retries--;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+          throw error;
+        }
+      }
     }
   };
 
@@ -224,6 +260,8 @@ export const Login = () => {
         return 'Numéro de téléphone invalide';
       case 'auth/missing-recaptcha-token':
         return 'Erreur de vérification reCAPTCHA';
+      case 'auth/network-request-failed':
+        return 'Erreur de connexion réseau. Vérifiez votre connexion internet et réessayez.';
       default:
         return error.message || 'Erreur de connexion inattendue';
     }
@@ -283,14 +321,24 @@ export const Login = () => {
               {detectLoginType(identifier) === 'email' && (
                 <div>
                   <label className="block font-medium text-gray-700 mb-2">Mot de passe</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4ca260]"
-                    placeholder="Votre mot de passe"
-                    disabled={loading}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full p-3 pr-12 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4ca260]"
+                      placeholder="Votre mot de passe"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      disabled={loading}
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
                 </div>
               )}
 

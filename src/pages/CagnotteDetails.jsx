@@ -60,7 +60,7 @@ const CagnotteDetails = () => {
     fetchCagnotteDetails();
   }, [id, refreshKey]);
 
-  // Détecter si on vient d'une modification
+  // Détecter si on vient d'une modification ou rafraîchir périodiquement
   useEffect(() => {
     const state = location.state;
     if (state && state.fromEdit) {
@@ -68,6 +68,27 @@ const CagnotteDetails = () => {
       setRefreshKey(prev => prev + 1);
     }
   }, [location.state]);
+  
+  // Rafraîchir automatiquement toutes les 30 secondes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('Rafraîchissement automatique des détails de la cagnotte');
+      setRefreshKey(prev => prev + 1);
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Rafraîchir quand on revient sur la page
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Retour sur la page, rafraîchissement');
+      setRefreshKey(prev => prev + 1);
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   // accès utilisateur - récupérer l'utilisateur depuis l'API
   useEffect(() => {

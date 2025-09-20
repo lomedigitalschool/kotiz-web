@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { sendNotification } from "../services/notificationService";
-import { apiFetch } from "../services/api";
+import api, { apiFetch } from "../services/api";
 
 
 // Fonction  pour charger depuis localStorage
@@ -88,20 +88,16 @@ export const useCagnotteStore = create((set, get) => ({
       // Essayer d'abord de récupérer toutes les cagnottes avec authentification
       let response;
       try {
-        response = await apiFetch(`http://localhost:5000/api/v1/pulls/all`);
+        response = await api.get('/pulls/all');
         console.log('✅ Toutes les cagnottes récupérées avec authentification');
       } catch (authError) {
         console.log('⚠️ Authentification requise, récupération des cagnottes publiques seulement');
         // Si pas authentifié, récupérer seulement les publiques
-        response = await apiFetch(`http://localhost:5000/api/v1/pulls/public`);
+        response = await api.get('/pulls/public');
         console.log('✅ Cagnottes publiques récupérées (sans authentification)');
       }
 
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      const result = await response.json();
+      const result = response.data;
       console.log('📊 Cagnottes récupérées:', result.data?.length || result.length);
 
       // Extraire les données du résultat (car l'API retourne un objet avec data)
@@ -141,20 +137,9 @@ export const useCagnotteStore = create((set, get) => ({
         return;
       }
       
-      // ✅ CORRECTION: Utiliser l'URL correcte du backend
-      const response = await apiFetch(`http://localhost:5000/api/v1/pulls`);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.warn('⚠️ Token expiré - nettoyage nécessaire');
-          localStorage.removeItem('token');
-          set({ cagnottes: [], loading: false, error: 'Session expirée' });
-          return;
-        }
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // ✅ CORRECTION: Utiliser l'instance API configurée (Axios)
+      const response = await api.get('/pulls');
+      const data = response.data;
       console.log('✅ Cagnottes utilisateur récupérées:', data.length, 'cagnottes');
       console.log('📊 Données reçues du backend:', data);
 
@@ -174,15 +159,36 @@ export const useCagnotteStore = create((set, get) => ({
     }
   },
 
-  // récupération cagnotte par id
-  fetchCagnotte: (id) => {
-    const allCagnottes = get().cagnottes;
-    const selected = allCagnottes.find(c => c.id === id) || null;
-
-    const savedContributions = loadFromStorage("contributions", []);
-    const filteredContributions = savedContributions.filter(c => c.cagnotteId === id);
-
-    set({ cagnotte: selected, contributions: filteredContributions });
+  // récupération cagnotte par id depuis l'API
+  fetchCagnotte: async (id) => {
+    set({ loading: true, error: null });
+    
+    try {
+      console.log('🔍 Récupération de la cagnotte depuis l\'API:', id);
+      
+      // Appel API pour récupérer la cagnotte mise à jour
+      const response = await api.get(`/pulls/${id}`);
+      const cagnotteData = response.data.data || response.data;
+      
+      console.log('✅ Cagnotte récupérée depuis l\'API:', cagnotteData);
+      
+      // Mettre à jour la cagnotte courante
+      set({ cagnotte: cagnotteData, loading: false });
+      
+      // Sauvegarder dans localStorage
+      localStorage.setItem("cagnotte", JSON.stringify(cagnotteData));
+      
+      return cagnotteData;
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération de la cagnotte:', error);
+      
+      // Fallback vers le store local
+      const allCagnottes = get().cagnottes;
+      const selected = allCagnottes.find(c => c.id === id) || null;
+      
+      set({ cagnotte: selected, loading: false, error: error.message });
+      return selected;
+    }
   },
 
   // ajout cagnotte
@@ -276,25 +282,22 @@ export const useCagnotteStore = create((set, get) => ({
 
       try {
         // Essayer de récupérer depuis l'API
-        const response = await apiFetch(`http://localhost:5000/api/v1/contributions/my`);
+        const response = await api.get('/contributions/my');
+        const apiContributions = response.data;
+        console.log('✅ Contributions récupérées depuis l\'API:', apiContributions.length);
         
-        if (response.ok) {
-          const apiContributions = await response.json();
-          console.log('✅ Contributions récupérées depuis l\'API:', apiContributions.length);
-          
-          // Fusionner avec les contributions locales
-          const localContributions = loadFromStorage("contributions", []);
-          const allContributions = [...apiContributions, ...localContributions];
-          
-          // Supprimer les doublons par ID
-          const uniqueContributions = allContributions.filter((contrib, index, self) => 
-            index === self.findIndex(c => c.id === contrib.id)
-          );
-          
-          set({ contributions: uniqueContributions, loading: false });
-          localStorage.setItem("contributions", JSON.stringify(uniqueContributions));
-          return;
-        }
+        // Fusionner avec les contributions locales
+        const localContributions = loadFromStorage("contributions", []);
+        const allContributions = [...apiContributions, ...localContributions];
+        
+        // Supprimer les doublons par ID
+        const uniqueContributions = allContributions.filter((contrib, index, self) => 
+          index === self.findIndex(c => c.id === contrib.id)
+        );
+        
+        set({ contributions: uniqueContributions, loading: false });
+        localStorage.setItem("contributions", JSON.stringify(uniqueContributions));
+        return;
       } catch (apiError) {
         console.warn('⚠️ API non disponible, utilisation des données locales:', apiError.message);
       }

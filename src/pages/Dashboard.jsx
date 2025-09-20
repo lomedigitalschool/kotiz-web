@@ -21,6 +21,19 @@ const Dashboard = () => {
     const loadUserData = async () => {
       try {
         console.log('🔄 Dashboard: Chargement des données utilisateur');
+        
+        // Debug: Vérifier l'utilisateur connecté
+        const { auth } = await import('../config/firebase');
+        if (auth.currentUser) {
+          console.log('👤 Utilisateur Firebase connecté:', {
+            uid: auth.currentUser.uid,
+            email: auth.currentUser.email,
+            emailVerified: auth.currentUser.emailVerified
+          });
+        } else {
+          console.warn('⚠️ Aucun utilisateur Firebase connecté');
+        }
+        
         useCagnotteStore.getState().cleanMockData();
         await fetchUserCagnottes();
         await fetchUserContributions();
@@ -44,6 +57,17 @@ const Dashboard = () => {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [fetchUserCagnottes, fetchUserContributions]);
+  
+  // Rafraîchissement automatique toutes les 60 secondes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('🔄 Dashboard: Rafraîchissement automatique');
+      fetchUserCagnottes();
+      fetchUserContributions();
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [fetchUserCagnottes, fetchUserContributions]);
 
   // Calculer les statistiques utilisateur
   useEffect(() => {
@@ -53,8 +77,16 @@ const Dashboard = () => {
         return;
       }
       
+      console.log('📊 Calcul des statistiques avec:', {
+        cagnottesCount: cagnottes.length,
+        contributionsCount: contributions.length,
+        cagnottes: cagnottes.map(c => ({ id: c.id, title: c.title, currentAmount: c.currentAmount })),
+        contributions: contributions.map(c => ({ id: c.id, amount: c.amount, cagnotteId: c.cagnotteId }))
+      });
+      
       const totalCollected = cagnottes.reduce((sum, c) => {
         const amount = parseFloat(c.currentAmount || c.collectedAmount || 0);
+        console.log(`Cagnotte ${c.title}: ${amount} FCFA`);
         return sum + amount;
       }, 0);
       
@@ -62,10 +94,16 @@ const Dashboard = () => {
         c.status === 'active' || c.status === 'pending' || !c.status
       ).length;
       
-      // Compter les contributeurs uniques à travers toutes les cagnottes
+      // Compter les contributeurs uniques pour toutes les cagnottes de l'utilisateur
       const allContributorIds = new Set();
+      const userCagnotteIds = new Set(cagnottes.map(c => c.id));
+      
       contributions.forEach(c => {
-        if (c.userId) allContributorIds.add(c.userId);
+        // Compter seulement les contributions aux cagnottes de l'utilisateur
+        if (userCagnotteIds.has(c.cagnotteId)) {
+          const contributorId = c.userId || c.contributorName || c.user || 'anonymous';
+          allContributorIds.add(contributorId);
+        }
       });
       
       const stats = {
@@ -74,7 +112,7 @@ const Dashboard = () => {
         totalContributors: allContributorIds.size
       };
 
-      console.log('📊 Statistiques calculées:', stats);
+      console.log('📊 Statistiques finales calculées:', stats);
       setUserStats(stats);
     };
     
@@ -306,7 +344,7 @@ const Dashboard = () => {
             <div key={c.id} className="bg-white rounded-2xl shadow p-6 cursor-pointer" onClick={() => navigate(`/cagnottes/${c.id}`)}>
               {c.imageUrl && c.imageUrl !== 'null' && c.imageUrl !== 'undefined' ? (
                 <img
-                  src={c.imageUrl.startsWith('http') ? c.imageUrl : `http://localhost:5000${c.imageUrl}`}
+                  src={c.imageUrl.startsWith('http') ? c.imageUrl : `https://kotiz-back.onrender.com${c.imageUrl}`}
                   alt={c.title}
                   className="w-full h-40 object-cover rounded-lg mb-4"
                   loading="lazy"
