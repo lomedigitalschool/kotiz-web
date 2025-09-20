@@ -3,13 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { useAuth } from "../contexts/AuthContext";
+import { auth } from "../config/firebase";
 import api from "../services/api";
 
 const EditCagnotte = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { cagnotte, fetchCagnotte, updateCagnotte } = useCagnotteStore();
+  const { cagnotte, fetchCagnotte, updateCagnotte, fetchUserCagnottes } = useCagnotteStore();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -33,16 +34,61 @@ const EditCagnotte = () => {
     }
     
     if (!cagnotte || cagnotte.id !== Number(id)) {
-      fetchCagnotte(Number(id));
+      console.log('Chargement de la cagnotte depuis l\'API:', id);
+      const loadCagnotte = async () => {
+        const loadedCagnotte = await fetchCagnotte(Number(id));
+        if (loadedCagnotte) {
+          // Vérifier que l'utilisateur est propriétaire
+          console.log('🔍 Vérification propriétaire (API):');
+          console.log('  - loadedCagnotte.userId:', loadedCagnotte.userId);
+          console.log('  - user.id:', user.id);
+          console.log('  - loadedCagnotte.owner?.id:', loadedCagnotte.owner?.id);
+          console.log('  - loadedCagnotte:', loadedCagnotte);
+          
+          if (loadedCagnotte.userId !== user.id && loadedCagnotte.owner?.id !== user.id) {
+            console.log('❌ Pas propriétaire - accès refusé (API)');
+            alert('Vous n\'avez pas l\'autorisation de modifier cette cagnotte.');
+            navigate('/dashboard');
+            return;
+          }
+          
+          console.log('✅ Utilisateur propriétaire confirmé (API)');
+          
+          const formDataToSet = {
+            title: loadedCagnotte.title || "",
+            description: loadedCagnotte.description || "",
+            goalAmount: loadedCagnotte.goalAmount || "",
+            status: loadedCagnotte.status || "active",
+            type: loadedCagnotte.type || "public",
+            deadline: loadedCagnotte.deadline
+              ? new Date(loadedCagnotte.deadline).toISOString().split("T")[0]
+              : "",
+            currency: loadedCagnotte.currency || "FCFA",
+          };
+          console.log('Données du formulaire initialisées depuis l\'API:', formDataToSet);
+          setFormData(formDataToSet);
+        }
+      };
+      loadCagnotte();
     } else {
+      console.log('Cagnotte déjà chargée:', cagnotte);
       // Vérifier que l'utilisateur est propriétaire
+      console.log('🔍 Vérification propriétaire (store):');
+      console.log('  - cagnotte.userId:', cagnotte.userId);
+      console.log('  - user.id:', user.id);
+      console.log('  - cagnotte.owner?.id:', cagnotte.owner?.id);
+      console.log('  - cagnotte:', cagnotte);
+      
       if (cagnotte.userId !== user.id && cagnotte.owner?.id !== user.id) {
+        console.log('❌ Pas propriétaire - accès refusé (store)');
         alert('Vous n\'avez pas l\'autorisation de modifier cette cagnotte.');
         navigate('/dashboard');
         return;
       }
       
-      setFormData({
+      console.log('✅ Utilisateur propriétaire confirmé (store)');
+      
+      const formDataToSet = {
         title: cagnotte.title || "",
         description: cagnotte.description || "",
         goalAmount: cagnotte.goalAmount || "",
@@ -52,7 +98,9 @@ const EditCagnotte = () => {
           ? new Date(cagnotte.deadline).toISOString().split("T")[0]
           : "",
         currency: cagnotte.currency || "FCFA",
-      });
+      };
+      console.log('Données du formulaire initialisées depuis le store:', formDataToSet);
+      setFormData(formDataToSet);
     }
   }, [id, cagnotte, fetchCagnotte, user, navigate]);
 
@@ -83,7 +131,7 @@ const EditCagnotte = () => {
     setErrorMsg("");
 
     try {
-      // Préparer les données pour l'API
+      // Préparer les données pour l'API (même format que le backend attend)
       const updateData = {
         title: formData.title,
         description: formData.description,
@@ -95,15 +143,54 @@ const EditCagnotte = () => {
       };
 
       console.log('Données à envoyer pour mise à jour:', updateData);
+      console.log('ID de la cagnotte:', id);
+      console.log('URL de l\'API:', `/pulls/${id}`);
+      
+      // Vérifier le token Firebase avant l'appel
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        console.log('🔑 Token Firebase prêt:', token.substring(0, 50) + '...');
+        console.log('👤 Utilisateur Firebase:', {
+          uid: auth.currentUser.uid,
+          email: auth.currentUser.email,
+          emailVerified: auth.currentUser.emailVerified
+        });
+      } else {
+        console.error('❌ Aucun utilisateur Firebase connecté');
+      }
 
       // Appel API pour mettre à jour la cagnotte
       const response = await api.put(`/pulls/${id}`, updateData);
 
-      console.log('Réponse de l\'API:', response.data);
+      console.log('Réponse de l\'API:', response);
+      console.log('Status de la réponse:', response.status);
+      console.log('Données de la réponse:', response.data);
 
       if (response.data) {
-        // Mettre à jour le store local
-        updateCagnotte(response.data.pull || response.data);
+        // Mettre à jour le store local avec les nouvelles données
+        const updatedCagnotte = response.data.pull || response.data;
+        updateCagnotte(updatedCagnotte);
+        
+        // Rafraîchir les données utilisateur pour le dashboard (comme dans createCagnotte)
+        try {
+          console.log('🔄 Début du rafraîchissement des données...');
+          await fetchUserCagnottes();
+          await useCagnotteStore.getState().fetchUserContributions();
+          
+          // Forcer aussi le rafraîchissement de toutes les cagnottes
+          await useCagnotteStore.getState().fetchAllCagnottes();
+          
+          console.log('✅ Données utilisateur rafraîchies après modification de cagnotte');
+          
+          // Vérifier que la cagnotte est bien mise à jour dans le store
+          const updatedStore = useCagnotteStore.getState();
+          const updatedCagnotteInStore = updatedStore.cagnottes.find(c => c.id === Number(id));
+          console.log('Cagnotte mise à jour dans le store:', updatedCagnotteInStore);
+          
+        } catch (refreshError) {
+          console.warn('⚠️ Erreur lors du rafraîchissement:', refreshError);
+        }
+        
         setSuccessMsg("Cagnotte modifiée avec succès !");
 
         // Rediriger après un court délai avec indication de modification
@@ -116,6 +203,10 @@ const EditCagnotte = () => {
       }
     } catch (err) {
       console.error('Erreur lors de la modification:', err);
+      console.error('Status de l\'erreur:', err.response?.status);
+      console.error('Données de l\'erreur:', err.response?.data);
+      console.error('Config de la requête:', err.config);
+      
       const errorMessage = err.response?.data?.error || err.response?.data?.message || "Erreur lors de la modification. Veuillez réessayer.";
       setErrorMsg(errorMessage);
     } finally {

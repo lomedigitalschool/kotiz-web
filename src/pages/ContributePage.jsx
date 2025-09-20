@@ -108,23 +108,16 @@ const ContributePage = () => {
         console.log("Payload invité:", guestPayload);
         return (await api.post(`/public/contributions/anonymous/${id}`, guestPayload)).data;
       } else {
-        // Contribution utilisateur connecté
-        const userEmail = localStorage.getItem("userEmail") || "user@example.com";
-        const userPhone = localStorage.getItem("userPhone") || "+000000000";
-
+        // Contribution utilisateur connecté - utiliser l'endpoint correct
         const userPayload = {
-          pullId: Number(id),
           amount: payload.amount,
           message: payload.message,
           paymentMethod: method,
-          isAnonymous: payload.anonymous,
-          contributorName: payload.anonymous ? "Anonyme" : "Utilisateur connecté",
-          contributorEmail: userEmail,
-          phoneNumber: userPhone,
+          anonymous: payload.anonymous
         };
 
         console.log("Payload utilisateur connecté:", userPayload);
-        return (await api.post(`/contributions`, userPayload)).data;
+        return (await api.post(`/pulls/${id}/contribute`, userPayload)).data;
       }
     } catch (err) {
       console.error("Erreur contribution:", err.response?.data || err.message);
@@ -159,18 +152,21 @@ const ContributePage = () => {
       try {
         console.log('🔄 Rafraîchissement des données après contribution');
         
+        // Attendre un peu pour que le serveur traite la contribution
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Rafraîchir toutes les cagnottes pour la page explorer
         await fetchAllCagnottes();
         
         // Rafraîchir les contributions utilisateur pour le dashboard et transactions
         if (!isGuest) {
           await fetchUserContributions();
-        }
-        
-        // Forcer le rafraîchissement du store complet
-        const { refreshAllData } = useCagnotteStore.getState();
-        if (refreshAllData) {
-          await refreshAllData();
+          
+          // Rafraîchir aussi les cagnottes utilisateur pour mettre à jour les montants
+          const { fetchUserCagnottes } = useCagnotteStore.getState();
+          if (fetchUserCagnottes) {
+            await fetchUserCagnottes();
+          }
         }
         
         console.log('✅ Données rafraîchies avec succès');
