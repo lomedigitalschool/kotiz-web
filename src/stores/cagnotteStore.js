@@ -128,7 +128,7 @@ export const useCagnotteStore = create((set, get) => ({
 
     try {
       console.log('🔍 Récupération des cagnottes de l\'utilisateur connecté');
-      
+
       // Vérifier qu'on a un token valide
       const token = localStorage.getItem('token');
       if (!token) {
@@ -136,23 +136,39 @@ export const useCagnotteStore = create((set, get) => ({
         set({ cagnottes: [], loading: false, error: 'Non authentifié' });
         return;
       }
-      
+
       // ✅ CORRECTION: Utiliser l'instance API configurée (Axios)
       const response = await api.get('/pulls');
       const data = response.data;
       console.log('✅ Cagnottes utilisateur récupérées:', data.length, 'cagnottes');
       console.log('📊 Données reçues du backend:', data);
 
-      // S'assurer que chaque cagnotte a les bonnes propriétés
-      const processedData = Array.isArray(data) ? data.map(c => ({
-        ...c,
-        currentAmount: parseFloat(c.currentAmount) || 0,
-        goalAmount: parseFloat(c.goalAmount) || 0,
-        collectedAmount: parseFloat(c.currentAmount) || 0 // Pour la compatibilité
-      })) : [];
+      // Récupérer les contributions pour calculer les montants réels
+      const contributionsResponse = await api.get('/contributions/my');
+      const contributions = contributionsResponse.data || [];
+      console.log('✅ Contributions récupérées:', contributions.length);
+
+      // Calculer les montants réels pour chaque cagnotte
+      const cagnotteAmounts = new Map();
+      contributions.forEach(contrib => {
+        const cagnotteId = contrib.cagnotteId;
+        const amount = parseFloat(contrib.amount) || 0;
+        cagnotteAmounts.set(cagnotteId, (cagnotteAmounts.get(cagnotteId) || 0) + amount);
+      });
+
+      // S'assurer que chaque cagnotte a les bonnes propriétés avec montants calculés
+      const processedData = Array.isArray(data) ? data.map(c => {
+        const calculatedAmount = cagnotteAmounts.get(c.id) || 0;
+        return {
+          ...c,
+          currentAmount: calculatedAmount,
+          goalAmount: parseFloat(c.goalAmount) || 0,
+          collectedAmount: calculatedAmount // Pour la compatibilité
+        };
+      }) : [];
 
       set({ cagnottes: processedData, loading: false });
-      console.log('📊 Cagnottes de l\'utilisateur chargées:', processedData.length);
+      console.log('📊 Cagnottes de l\'utilisateur chargées avec montants calculés:', processedData.length);
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des cagnottes utilisateur:', error);
       set({ cagnottes: [], loading: false, error: error.message });
@@ -285,16 +301,26 @@ export const useCagnotteStore = create((set, get) => ({
         const response = await api.get('/contributions/my');
         const apiContributions = response.data;
         console.log('✅ Contributions récupérées depuis l\'API:', apiContributions.length);
-        
+
+        // Récupérer les cagnottes pour enrichir les contributions avec les titres
+        const currentCagnottes = get().cagnottes;
+        const cagnotteMap = new Map(currentCagnottes.map(c => [c.id, c.title]));
+
+        // Enrichir les contributions avec les titres des cagnottes
+        const enrichedContributions = apiContributions.map(contrib => ({
+          ...contrib,
+          cagnotteTitle: cagnotteMap.get(contrib.cagnotteId) || contrib.cagnotteTitle || "Cagnotte inconnue"
+        }));
+
         // Fusionner avec les contributions locales
         const localContributions = loadFromStorage("contributions", []);
-        const allContributions = [...apiContributions, ...localContributions];
-        
+        const allContributions = [...enrichedContributions, ...localContributions];
+
         // Supprimer les doublons par ID
-        const uniqueContributions = allContributions.filter((contrib, index, self) => 
+        const uniqueContributions = allContributions.filter((contrib, index, self) =>
           index === self.findIndex(c => c.id === contrib.id)
         );
-        
+
         set({ contributions: uniqueContributions, loading: false });
         localStorage.setItem("contributions", JSON.stringify(uniqueContributions));
         return;
@@ -305,7 +331,7 @@ export const useCagnotteStore = create((set, get) => ({
       // Fallback vers localStorage
       const stored = loadFromStorage("contributions", []);
       set({ contributions: stored, loading: false });
-      
+
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des contributions:', error);
       const stored = loadFromStorage("contributions", []);
