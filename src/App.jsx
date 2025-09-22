@@ -17,6 +17,7 @@ import PaymentResult from "./pages/PaymentResult";
 import NotificationsPage from "./pages/Notifications";
 import KycForm from "./pages/KycForm";
 import Transactions from "./pages/Transactions";
+import ReceiptPage from "./pages/ReceiptPage";
 import { useAuth } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Breadcrumb from "./components/Breadcrumb";
@@ -140,6 +141,11 @@ export default function App() {
       <Route path="/transactions" element={
         <AuthGuard requireAuth={true}>
           <Transactions />
+        </AuthGuard>
+      } />
+      <Route path="/receipt" element={
+        <AuthGuard requireAuth={true}>
+          <ReceiptPage />
         </AuthGuard>
       } />
 
