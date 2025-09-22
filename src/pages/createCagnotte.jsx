@@ -6,6 +6,7 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
 import { FaHome, FaSearch, FaUser } from "react-icons/fa";
+import DatePicker from "../components/DatePicker";
 
 
 const CreerCagnotte = () => {
@@ -16,7 +17,7 @@ const CreerCagnotte = () => {
     description: "",
     goalAmount: "",
     currency: "XOF",
-    deadline: "",
+    deadline: null, // Changé en null pour Date object
     type: "public",
     participantLimit: "",
     image: null,
@@ -113,7 +114,7 @@ const CreerCagnotte = () => {
         description: form.description,
         goalAmount: parseFloat(form.goalAmount) || 0,
         currency: form.currency,
-        deadline: form.deadline || null,
+        deadline: form.deadline ? form.deadline.toISOString().split('T')[0] : null, // Convertir Date en string YYYY-MM-DD
         type: form.type,
         participantLimit: form.participantLimit ? parseInt(form.participantLimit) : null
       };
@@ -160,7 +161,7 @@ const CreerCagnotte = () => {
           description: "",
           goalAmount: "",
           currency: "XOF",
-          deadline: "",
+          deadline: null,
           type: "public",
           participantLimit: "",
           imageFile: null,
@@ -336,12 +337,11 @@ const CreerCagnotte = () => {
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700">Date de clôture</label>
-                  <input
-                    type="date"
-                    name="deadline"
-                    value={form.deadline}
-                    onChange={handleChange}
-                    className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none"
+                  <DatePicker
+                    selected={form.deadline}
+                    onSelect={(date) => setForm({ ...form, deadline: date })}
+                    placeholder="Sélectionner la date de clôture"
+                    minDate={new Date()} // Date minimum = aujourd'hui
                   />
                 </div>
                 <div className="flex justify-between">

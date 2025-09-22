@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { useCagnotteStore } from '../stores/cagnotteStore';
+import api from '../services/api';
 
 const AuthContext = createContext({});
 
@@ -23,23 +24,46 @@ export const AuthProvider = ({ children }) => {
     
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('👤 Changement d\'état Firebase:', firebaseUser?.uid || 'Déconnecté');
-      
+
       if (firebaseUser) {
         // Utilisateur connecté
         try {
           const token = await firebaseUser.getIdToken(true);
           localStorage.setItem('token', token);
-          
-          setUser(firebaseUser);
-          setIsAuthenticated(true);
-          
-          console.log('✅ Utilisateur authentifié:', firebaseUser.uid);
-          
-          // Recharger les données utilisateur après un court délai
-          setTimeout(() => {
-            useCagnotteStore.getState().fetchUserCagnottes();
-          }, 500);
-          
+
+          // Récupérer le profil utilisateur depuis le backend
+          try {
+            const response = await api.get('/users/me');
+            const dbUser = response.data;
+
+            // Fusionner les données Firebase et base de données
+            const userWithDbId = {
+              ...firebaseUser,
+              id: dbUser.id, // ID de la base de données
+              dbProfile: dbUser
+            };
+
+            setUser(userWithDbId);
+            setIsAuthenticated(true);
+
+            console.log('✅ Utilisateur authentifié avec profil DB:', {
+              firebaseUid: firebaseUser.uid,
+              dbId: dbUser.id,
+              email: dbUser.email
+            });
+
+            // Recharger les données utilisateur après un court délai
+            setTimeout(() => {
+              useCagnotteStore.getState().fetchUserCagnottes();
+            }, 500);
+
+          } catch (profileError) {
+            console.error('❌ Erreur récupération profil utilisateur:', profileError);
+            // Fallback: utiliser seulement Firebase
+            setUser(firebaseUser);
+            setIsAuthenticated(true);
+          }
+
         } catch (error) {
           console.error('❌ Erreur récupération token:', error);
           handleLogout();
@@ -48,7 +72,7 @@ export const AuthProvider = ({ children }) => {
         // Utilisateur déconnecté
         handleLogout();
       }
-      
+
       setLoading(false);
     });
 
