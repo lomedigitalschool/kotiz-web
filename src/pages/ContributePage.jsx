@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
+import PhoneInput from "../components/PhoneInput";
 
 
 const ContributePage = () => {
@@ -174,7 +175,8 @@ const ContributePage = () => {
         console.error('❌ Erreur lors du rafraîchissement des données:', refreshError);
       }
 
-      setReceipt({
+      // Préparer les données pour la page de reçu
+      const receiptData = {
         contribution: newContribution,
         transaction: {
           id: Date.now() + 1,
@@ -182,8 +184,13 @@ const ContributePage = () => {
           providerReference: `PROV-${Date.now()}`
         },
         cagnotteTitle: cagnotte.title,
-        userName: newContribution.anonymous ? "Anonyme" : isGuest ? guestName : "Utilisateur connecté"
-      });
+        userName: newContribution.anonymous ? "Anonyme" : isGuest ? guestName : "Utilisateur connecté",
+        contributorEmail: isGuest ? guestEmail : undefined,
+        contributorPhone: isGuest ? guestPhone : undefined
+      };
+
+      // Rediriger vers la page de reçu avec les données
+      navigate('/receipt', { state: { receiptData } });
 
       setAmount(""); setAnonymous(false); setMessage(""); setGuestName(""); setGuestEmail(""); setGuestPhone("");
     } catch (err) {
@@ -233,12 +240,12 @@ const ContributePage = () => {
       {/* Bouton retour */}
       <button onClick={() => window.history.back()} className="mb-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition">← Retour</button>
 
-      <h1 className="text-4xl font-bold mb-6 text-gray-800">Contribuer à "{cagnotte.title}"</h1>
+      <h1 className="text-4xl font-bold mb-6 text-gray-800">Contribuer à "{cagnotte.title || 'Cagnotte'}"</h1>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow" style={{ padding: "1.5rem" }}>
         {/* Montant */}
         <div>
-          <label className="block font-medium mb-1" style={{ color: "#374151" }}>Montant ({cagnotte.currency})</label>
+          <label className="block font-medium mb-1" style={{ color: "#374151" }}>Montant ({cagnotte.currency || 'FCFA'})</label>
           <input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)}
             className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Entrez le montant" />
           {amountError && <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.25rem" }}>{amountError}</p>}
@@ -267,8 +274,7 @@ const ContributePage = () => {
             </div>
             <div>
               <label className="block font-medium mb-1" style={{ color: "#374151" }}>Numéro (reçu)</label>
-              <input type="text" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)}
-                className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="ex: +228..." />
+              <PhoneInput value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} required />
               {guestPhoneError && <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.25rem" }}>{guestPhoneError}</p>}
             </div>
           </div>
@@ -320,32 +326,6 @@ const ContributePage = () => {
         </button>
         {submitError && <p style={{ color: "#dc2626", textAlign: "center", marginTop: "0.5rem" }}>{submitError}</p>}
       </form>
-      {/* Affichage du reçu */}
-      {receipt && (
-        <div className="mt-6 rounded shadow" style={{ backgroundColor: "#f0fdf4", borderLeft: "4px solid #4CA260", padding: "1.5rem" }}>
-          <h2 className="text-2xl font-bold mb-2">Contribution réussie 🎉</h2>
-          <p>Votre contribution a été enregistrée avec succès.</p>
-          <p><strong>Cagnotte :</strong> {receipt.cagnotteTitle}</p>
-          <p><strong>Contributeur :</strong> {receipt.userName}</p>
-          <p><strong>Montant :</strong> {receipt.contribution.amount} {cagnotte.currency}</p>
-          {receipt.contribution.message && <p><strong>Message :</strong> {receipt.contribution.message}</p>}
-          <p><strong>Référence paiement :</strong> {receipt.contribution.paymentReference}</p>
-          <p><strong>Transaction ID :</strong> {receipt.transaction.id}</p>
-          <p><strong>Statut :</strong> {receipt.transaction.status}</p>
-          <p><strong>Référence fournisseur :</strong> {receipt.transaction.providerReference}</p>
-          <p><strong>Date :</strong> {new Date(receipt.contribution.createdAt).toLocaleString()}</p>
-
-          {/* Bouton pour rediriger vers l’historique */}
-          <div className="mt-4">
-            <button
-              onClick={() => navigate("/transactions")}
-              className="w-full py-3 text-white font-semibold rounded-md transition bg-primary hover:opacity-90"
-            >
-              Voir dans mes transactions
-            </button>
-          </div>
-        </div>
-      )}
 
 
     </div>
