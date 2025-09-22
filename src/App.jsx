@@ -149,9 +149,6 @@ export default function App() {
         </AuthGuard>
       } />
 
-
-      
-
     </Routes>
    </>
   );
