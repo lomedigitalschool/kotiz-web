@@ -3,6 +3,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from './Button';
 import { FaCogs, FaQuestionCircle, FaSearch } from "react-icons/fa";
+import logo from '../assets/logos/logo_horizontale.png';
+
+
+
 
 
 // Composant Header : barre de navigation principale
@@ -13,7 +17,7 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
     <header className="fixed top-0 left-0 w-full flex  items-center px-6 md:px-12 py-4 bg-white shadow-md z-50">
       {/* Logo horizontal de l'application */}
       <img
-        src="/src/assets/logos/logo_horizontale.png"
+        src={logo} 
         alt="Logo horizontal"
         className="w-40 cursor-pointer"
         onClick={() => navigate('/landing')} // Redirection vers la page d'accueil
