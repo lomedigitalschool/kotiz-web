@@ -7,6 +7,7 @@ import { FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt, FaWallet } fro
 import { useAuth } from "../contexts/AuthContext";
 import EmailVerificationBanner from "../components/EmailVerificationBanner";
 import api from "../services/api";
+import logoHorizontale from "../assets/logos/logo_horizontale.png";
 
 
 const Dashboard = () => {
@@ -97,14 +98,17 @@ const Dashboard = () => {
       // Compter les contributeurs uniques pour toutes les cagnottes de l'utilisateur
       const allContributorIds = new Set();
       const userCagnotteIds = new Set(cagnottes.map(c => c.id));
-      
+
       contributions.forEach(c => {
         // Compter seulement les contributions aux cagnottes de l'utilisateur
         if (userCagnotteIds.has(c.cagnotteId)) {
           const contributorId = c.userId || c.contributorName || c.user || 'anonymous';
           allContributorIds.add(contributorId);
+          console.log('Contributeur ajouté:', contributorId, 'pour cagnotte:', c.cagnotteId);
         }
       });
+
+      console.log('Contributeurs uniques totaux:', allContributorIds.size, Array.from(allContributorIds));
       
       const stats = {
         totalCollected,
@@ -131,7 +135,7 @@ const Dashboard = () => {
         {/* Logo */}
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/landing")}>
           <img
-            src="/src/assets/logos/logo_horizontale.png"
+            src={logoHorizontale}
             alt="Logo horizontal"
             className="w-40"
           />

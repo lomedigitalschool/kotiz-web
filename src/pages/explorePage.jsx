@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/Button";
 import { FaHome, FaUser, FaTachometerAlt, FaSignOutAlt, FaCog, FaLock, FaGlobe } from "react-icons/fa";
+import logoHorizontale from "../assets/logos/logo_horizontale.png";
 
 
 export default function ExplorerPage() {
@@ -84,7 +85,7 @@ export default function ExplorerPage() {
         {/* Logo + flèche retour vers la page d'accueil */}
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/landing")}>
           <img
-            src="/src/assets/logos/logo_horizontale.png"
+            src={logoHorizontale}
             alt="Logo horizontal"
             className="w-40"
           />

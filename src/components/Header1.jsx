@@ -2,6 +2,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from './Button';
+import logoHorizontale from '../assets/logos/logo_horizontale.png';
 
 // Composant Header1 : barre de navigation alternative de explorePage
 const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
@@ -11,7 +12,7 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks }) => {
     <header className="fixed top-0 left-0 w-full flex justify-between items-center px-6 md:px-12 py-4 bg-white shadow-md z-50">
       {/* Logo horizontal de l'application */}
       <img
-        src="/src/assets/logos/logo_horizontale.png"
+        src={logoHorizontale}
         alt="Logo horizontal"
         className="w-40 cursor-pointer"
         onClick={() => navigate('/landing')} // Redirection vers la page d'accueil
