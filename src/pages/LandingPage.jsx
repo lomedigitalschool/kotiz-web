@@ -6,6 +6,9 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header.jsx";
 import Button from "../components/Button";
 import { colors } from '../theme/colors';
+import logo from '../assets/logos/logo_horizontale.png';
+
+
 
 // Composant principal de la page d'accueil
 const LandingPage = () => {
@@ -243,7 +246,7 @@ const LandingPage = () => {
       <footer className="bg-gray-100 py-6 mt-0">
         <div className="container mx-auto flex justify-center h-full items-center">
           <img
-            src="/src/assets/logos/logo_horizontale.png"
+            img src={logo}
             alt="Logo horizontal"
             className="w-32 cursor-pointer"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} // Retour en haut de la page
