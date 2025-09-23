@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FiDownload, FiArrowLeft, FiCheckCircle } from 'react-icons/fi';
 import QRCode from 'react-qr-code';
+import logoHorizontale from '../assets/logos/logo_horizontale.png';
 
 const ReceiptPage = () => {
   const location = useLocation();
@@ -52,12 +53,46 @@ const ReceiptPage = () => {
   };
 
   const handleDownloadImage = () => {
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      const link = document.createElement('a');
-      link.download = `recu-${contribution.id}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
+    try {
+      // Créer un canvas temporaire pour capturer le reçu
+      const receiptElement = document.getElementById('receipt-content');
+      if (!receiptElement) {
+        alert('Contenu du reçu non trouvé.');
+        return;
+      }
+
+      // Utiliser une approche simple : ouvrir dans une nouvelle fenêtre et suggérer la capture d'écran
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Reçu - ${contribution.id}</title>
+              <style>
+                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                .receipt { max-width: 600px; margin: 0 auto; }
+              </style>
+            </head>
+            <body>
+              <div class="receipt">
+                ${receiptElement.innerHTML}
+              </div>
+              <script>
+                window.onload = function() {
+                  window.print();
+                };
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      } else {
+        alert('Veuillez autoriser les popups pour cette fonctionnalité.');
+      }
+    } catch (error) {
+      console.error('Erreur lors du téléchargement de l\'image:', error);
+      alert('Erreur lors du téléchargement. Utilisez le PDF.');
+      handleDownloadPDF();
     }
   };
 
@@ -120,7 +155,7 @@ const ReceiptPage = () => {
           <div className="text-center border-b pb-6 mb-6">
             <div className="flex justify-center mb-4">
               <img
-                src="/src/assets/logos/logo_horizontale.png"
+                src={logoHorizontale}
                 alt="Kotiz Logo"
                 className="h-12"
                 onError={(e) => {

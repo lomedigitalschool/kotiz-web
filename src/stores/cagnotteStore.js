@@ -3,7 +3,7 @@ import { sendNotification } from "../services/notificationService";
 import api, { apiFetch } from "../services/api";
 
 
-// Fonction  pour charger depuis localStorage
+// Fonction pour charger depuis localStorage
 const loadFromStorage = (key, fallback) => {
   try {
     const data = localStorage.getItem(key);
@@ -11,7 +11,50 @@ const loadFromStorage = (key, fallback) => {
   } catch (err) {
     return fallback;
   }
+};
 
+// Fonction pour générer une clé unique pour une contribution
+const generateContributionKey = (contribution) => {
+  const date = new Date(contribution.createdAt || contribution.date || Date.now());
+  const roundedTime = Math.floor(date.getTime() / 1000); // Arrondi à la seconde
+  // Utiliser pullId si cagnotteId n'existe pas (API backend)
+  const cagnotteId = contribution.cagnotteId || contribution.pullId;
+  return `${cagnotteId}-${contribution.userId || contribution.user || 'anonymous'}-${contribution.amount}-${roundedTime}`;
+};
+
+// Fonction pour recalculer les montants des cagnottes basés sur les contributions
+const recalculateCagnotteAmounts = (cagnottes, contributions) => {
+  const cagnotteAmounts = new Map();
+  const cagnotteContributors = new Map();
+
+  // Calculer les montants totaux par cagnotte
+  contributions.forEach(contrib => {
+    const cagnotteId = contrib.cagnotteId || contrib.pullId;
+    if (cagnotteId) {
+      // Montant
+      const currentAmount = cagnotteAmounts.get(cagnotteId) || 0;
+      cagnotteAmounts.set(cagnotteId, currentAmount + parseFloat(contrib.amount) || 0);
+
+      // Contributeurs
+      const contributors = cagnotteContributors.get(cagnotteId) || new Set();
+      contributors.add(contrib.userId || contrib.user || 'anonymous');
+      cagnotteContributors.set(cagnotteId, contributors);
+    }
+  });
+
+  // Mettre à jour les cagnottes avec les nouveaux montants
+  return cagnottes.map(cagnotte => {
+    const calculatedAmount = cagnotteAmounts.get(cagnotte.id) || 0;
+    const contributorsSet = cagnotteContributors.get(cagnotte.id) || new Set();
+
+    return {
+      ...cagnotte,
+      currentAmount: calculatedAmount,
+      collectedAmount: calculatedAmount,
+      contributorsCount: contributorsSet.size,
+      contributors: Array.from(contributorsSet)
+    };
+  });
 };
 
 export const useCagnotteStore = create((set, get) => ({
@@ -150,46 +193,14 @@ export const useCagnotteStore = create((set, get) => ({
       console.log('✅ Cagnottes utilisateur récupérées:', data.length, 'cagnottes');
       console.log('📊 Données reçues du backend:', data);
 
-      // Récupérer les contributions pour calculer les montants réels
-      const contributionsResponse = await api.get('/contributions/my');
-      const apiContributions = contributionsResponse.data || [];
-      console.log('✅ Contributions récupérées:', apiContributions.length);
-
-      // Fusionner avec les contributions locales existantes
-      const localContributions = loadFromStorage("contributions", []);
-      const allContributions = [...apiContributions, ...localContributions];
-
-      // Supprimer les doublons et enrichir
-      const cagnotteMap = new Map(data.map(c => [c.id, c.title]));
-      const enrichedContributions = allContributions
-        .filter((contrib, index, self) => index === self.findIndex(c => c.id === contrib.id))
-        .map(contrib => ({
-          ...contrib,
-          cagnotteTitle: cagnotteMap.get(contrib.cagnotteId) || contrib.cagnotteTitle || "Cagnotte inconnue"
-        }));
-
-      // Mettre à jour les contributions dans le state
-      set({ contributions: enrichedContributions });
-      localStorage.setItem("contributions", JSON.stringify(enrichedContributions));
-
-      // Calculer les montants réels pour chaque cagnotte
-      const cagnotteAmounts = new Map();
-      enrichedContributions.forEach(contrib => {
-        const cagnotteId = contrib.cagnotteId;
-        const amount = parseFloat(contrib.amount) || 0;
-        cagnotteAmounts.set(cagnotteId, (cagnotteAmounts.get(cagnotteId) || 0) + amount);
-      });
-
-      // S'assurer que chaque cagnotte a les bonnes propriétés avec montants calculés
-      const processedData = Array.isArray(data) ? data.map(c => {
-        const calculatedAmount = cagnotteAmounts.get(c.id) || 0;
-        return {
-          ...c,
-          currentAmount: calculatedAmount,
-          goalAmount: parseFloat(c.goalAmount) || 0,
-          collectedAmount: calculatedAmount // Pour la compatibilité
-        };
-      }) : [];
+      // Les contributions seront récupérées séparément par fetchUserContributions
+      // Pour l'instant, on ne calcule pas les montants ici
+      const processedData = Array.isArray(data) ? data.map(c => ({
+        ...c,
+        currentAmount: parseFloat(c.currentAmount) || 0,
+        goalAmount: parseFloat(c.goalAmount) || 0,
+        collectedAmount: parseFloat(c.currentAmount) || 0 // Pour la compatibilité
+      })) : [];
 
       set({ cagnottes: processedData, loading: false });
       console.log('📊 Cagnottes de l\'utilisateur chargées avec montants calculés:', processedData.length);
@@ -341,33 +352,54 @@ export const useCagnotteStore = create((set, get) => ({
         // Enrichir les contributions avec les titres des cagnottes
         const enrichedContributions = apiContributions.map(contrib => ({
           ...contrib,
-          cagnotteTitle: cagnotteMap.get(contrib.cagnotteId) || contrib.cagnotteTitle || "Cagnotte inconnue"
+          // Utiliser pullId si cagnotteId n'existe pas
+          cagnotteId: contrib.cagnotteId || contrib.pullId,
+          cagnotteTitle: cagnotteMap.get(contrib.cagnotteId || contrib.pullId) || contrib.cagnotteTitle || "Cagnotte inconnue",
+          source: 'API' // Marquer la source
         }));
 
         // Fusionner avec les contributions locales
-        const localContributions = loadFromStorage("contributions", []);
+        const localContributions = loadFromStorage("contributions", []).map(contrib => ({
+          ...contrib,
+          source: contrib.source || 'LOCAL' // Marquer la source pour les locales
+        }));
         const allContributions = [...enrichedContributions, ...localContributions];
 
-        // Supprimer les doublons par ID d'abord
-        let uniqueContributions = allContributions.filter((contrib, index, self) =>
-          index === self.findIndex(c => c.id === contrib.id)
-        );
+        // Utiliser une Map pour dédupliquer par clé unique
+        const contributionsMap = new Map();
 
-        // Supprimer les doublons supplémentaires par combinaison (cagnotteId + userId + amount + date approximative)
-        // pour éviter les doublons entre API et localStorage
-        uniqueContributions = uniqueContributions.filter((contrib, index, self) => {
-          // Garder seulement la première occurrence pour chaque combinaison unique
-          const isDuplicate = self.slice(0, index).some(other =>
-            other.cagnotteId === contrib.cagnotteId &&
-            (other.userId === contrib.userId || other.user === contrib.user) &&
-            parseFloat(other.amount) === parseFloat(contrib.amount) &&
-            Math.abs(new Date(other.createdAt || 0) - new Date(contrib.createdAt || 0)) < 60000 // 1 minute de tolérance
-          );
-          return !isDuplicate;
+        allContributions.forEach(contrib => {
+          const key = generateContributionKey(contrib);
+          if (!contributionsMap.has(key)) {
+            contributionsMap.set(key, contrib);
+          } else {
+            console.log('Doublon détecté et supprimé:', key, contrib);
+          }
         });
 
-        set({ contributions: uniqueContributions, loading: false });
-        localStorage.setItem("contributions", JSON.stringify(uniqueContributions));
+        const uniqueContributions = Array.from(contributionsMap.values());
+
+        // Éviter les updates inutiles qui causent des re-renders
+        set((state) => {
+          const hasChanged = JSON.stringify(state.contributions) !== JSON.stringify(uniqueContributions);
+          if (!hasChanged) {
+            console.log('Aucune modification des contributions, update ignoré');
+            return { loading: false }; // Ne changer que loading
+          }
+
+          console.log('Contributions mises à jour:', uniqueContributions.length, 'éléments');
+          localStorage.setItem("contributions", JSON.stringify(uniqueContributions));
+
+          // Recalculer les montants des cagnottes basés sur les nouvelles contributions
+          const updatedCagnottes = recalculateCagnotteAmounts(state.cagnottes, uniqueContributions);
+          localStorage.setItem("cagnottes", JSON.stringify(updatedCagnottes));
+
+          return {
+            contributions: uniqueContributions,
+            cagnottes: updatedCagnottes,
+            loading: false
+          };
+        });
         return;
       } catch (apiError) {
         console.warn('⚠️ API non disponible, utilisation des données locales:', apiError.message);
@@ -388,7 +420,7 @@ export const useCagnotteStore = create((set, get) => ({
   addContribution: (contribution) => {
     set((state) => {
       const cagnotte = state.cagnottes.find(c => c.id === contribution.cagnotteId);
-      
+
       // Créer la nouvelle contribution avec toutes les informations nécessaires
       const newContribution = {
         ...contribution,
@@ -400,6 +432,18 @@ export const useCagnotteStore = create((set, get) => ({
         anonymous: contribution.anonymous || false
       };
 
+      // Vérifier les doublons avant d'ajouter
+      const newKey = generateContributionKey(newContribution);
+      const isDuplicate = state.contributions.some(existing =>
+        generateContributionKey(existing) === newKey
+      );
+
+      if (isDuplicate) {
+        console.log('Contribution déjà existante, ignorée:', newKey);
+        return state; // Retourner l'état inchangé
+      }
+
+      console.log('Ajout contribution:', newKey, 'Source: LOCAL', newContribution);
       const updatedContributions = [...state.contributions, newContribution];
 
       // Mettre à jour la cagnotte courante si elle correspond
@@ -458,12 +502,15 @@ export const useCagnotteStore = create((set, get) => ({
         });
       }
 
+      // Recalculer tous les montants pour s'assurer de la cohérence
+      const finalCagnottes = recalculateCagnotteAmounts(updatedCagnottes, updatedContributions);
+
       // Sauvegarder dans localStorage
       localStorage.setItem("contributions", JSON.stringify(updatedContributions));
       if (updatedCagnotte) {
         localStorage.setItem("cagnotte", JSON.stringify(updatedCagnotte));
       }
-      localStorage.setItem("cagnottes", JSON.stringify(updatedCagnottes));
+      localStorage.setItem("cagnottes", JSON.stringify(finalCagnottes));
 
       console.log(`💰 Contribution ajoutée: ${contribution.amount} FCFA à "${cagnotte?.title}"`);
       console.log(`📊 Nouveau montant collecté: ${updatedCagnottes.find(c => c.id === contribution.cagnotteId)?.currentAmount} FCFA`);
@@ -472,7 +519,7 @@ export const useCagnotteStore = create((set, get) => ({
       return {
         contributions: updatedContributions,
         cagnotte: updatedCagnotte,
-        cagnottes: updatedCagnottes
+        cagnottes: finalCagnottes
       };
     });
   },

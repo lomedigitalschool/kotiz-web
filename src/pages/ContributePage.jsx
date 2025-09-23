@@ -49,7 +49,17 @@ const ContributePage = () => {
       try {
         setLoading(true);
         const response = await api.get(`/pulls/${id}`);
-        setCagnotte(response.data);
+
+        // Inspecter les données récupérées
+        console.log("📥 Données cagnotte récupérées:", response.data);
+
+        // Harmoniser le champ titre
+        const data = response.data.data || response.data; // selon la structure de l'API
+        setCagnotte({
+          ...data,
+          title: data.title || data.name || data.pullTitle || "Cagnotte"
+        });
+
         setError(null);
       } catch (err) {
         setError(err.response?.data?.message || "Impossible de charger la cagnotte.");

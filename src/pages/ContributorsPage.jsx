@@ -18,7 +18,7 @@ const ContributorsPage = () => {
   useEffect(() => {
     fetchAllCagnottes();
     fetchUserContributions();
-  }, [fetchAllCagnottes,  fetchUserContributions]);
+  }, []); // ✅ Dépendances vides pour éviter les boucles
 
   useEffect(() => {
     const foundCagnotte = cagnottes.find(c => c.id === parseInt  (id));

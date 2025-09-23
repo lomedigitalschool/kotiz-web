@@ -37,8 +37,21 @@ const CagnotteDetails = () => {
 
         // Traiter les données reçues
         const cagnotteData = response.data.data || response.data;
+        console.log('Données complètes de l\'API:', cagnotteData);
+
         setCagnotte(cagnotteData);
-        setContributions(cagnotteData.contributions || cagnotteData.recentContributions || []);
+
+        // Fetch contributions separately
+        try {
+          const contribResponse = await api.get(`/pulls/${id}/contributions`);
+          console.log('Contributions chargées:', contribResponse.data);
+          const contribs = contribResponse.data.data || contribResponse.data || [];
+          console.log('Contributions à définir:', contribs);
+          setContributions(contribs);
+        } catch (contribError) {
+          console.error('Erreur lors du chargement des contributions:', contribError);
+          setContributions([]);
+        }
 
         setError(null);
       } catch (err) {
@@ -125,7 +138,9 @@ const CagnotteDetails = () => {
   const progress = Math.min(((cagnotte.currentAmount || 0) / cagnotte.goalAmount) * 100, 100);
 
   // stats
-  const allContribs = contributions.filter(c => c.cagnotteId === cagnotte.id);
+  console.log('Contributions:', contributions, 'Cagnotte ID:', cagnotte.id, typeof cagnotte.id);
+  const allContribs = contributions.filter(c => c.cagnotteId?.toString() === cagnotte.id?.toString());
+  console.log('allContribs après filtrage:', allContribs);
   const totalPages = Math.ceil(allContribs.length / ITEMS_PER_PAGE);
   const currentList = allContribs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
@@ -319,7 +334,7 @@ const CagnotteDetails = () => {
                 {currentList.map((c) => (
                   <div key={c.id} className="border-b last:border-b-0 pb-2">
                     <div className="flex justify-between text-gray-800 font-medium">
-                      <span>{c.anonymous ? "Anonyme" : c.user || "Utilisateur"}</span>
+                      <span>{c.anonymous ? "Anonyme" : c.user?.name || c.user || "Utilisateur"}</span>
                       <span>{c.amount.toLocaleString()} {cagnotte.currency}</span>
                     </div>
                     <p className="text-sm text-gray-600 italic mt-1">
