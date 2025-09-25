@@ -334,7 +334,7 @@ const CagnotteDetails = () => {
                 {currentList.map((c) => (
                   <div key={c.id} className="border-b last:border-b-0 pb-2">
                     <div className="flex justify-between text-gray-800 font-medium">
-                      <span>{c.anonymous ? "Anonyme" : c.user?.name || c.user || "Utilisateur"}</span>
+                      <span>{c.anonymous ? "Anonyme" : c.contributor?.name || c.user?.name || "Utilisateur"}</span>
                       <span>{c.amount.toLocaleString()} {cagnotte.currency}</span>
                     </div>
                     <p className="text-sm text-gray-600 italic mt-1">
