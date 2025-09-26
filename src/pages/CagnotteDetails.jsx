@@ -23,7 +23,9 @@ const CagnotteDetails = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [currentUserData, setCurrentUserData] = useState(null);
-  const [userLoading, setUserLoading] = useState(true);
+   const [userLoading, setUserLoading] = useState(true);
+   const [kycStatus, setKycStatus] = useState(null);
+   const [kycLoading, setKycLoading] = useState(true);
 
   useEffect(() => {
     const fetchCagnotteDetails = async () => {
@@ -124,6 +126,26 @@ const CagnotteDetails = () => {
     }
   }, [cagnotte]);
 
+  // récupérer le statut KYC de l'utilisateur
+  useEffect(() => {
+    const fetchKycStatus = async () => {
+      try {
+        setKycLoading(true);
+        const response = await api.get('/kyc/status');
+        setKycStatus(response.data.data);
+      } catch (error) {
+        console.error('Erreur récupération statut KYC:', error);
+        setKycStatus({ hasActiveKyc: false, status: null });
+      } finally {
+        setKycLoading(false);
+      }
+    };
+
+    if (currentUserData) {
+      fetchKycStatus();
+    }
+  }, [currentUserData]);
+
   if (loading) return <p className="text-center mt-[80px] text-gray-500">Chargement...</p>;
   if (error) return <p style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</p>;
   if (!cagnotte) return <p className="text-center mt-20 text-gray-500">Cagnotte introuvable...</p>;
@@ -136,6 +158,21 @@ const CagnotteDetails = () => {
   const isOwner = cagnotte.isOwner || (cagnotte.userId === userId) || (cagnotte.owner?.id === userId);
 
   const progress = Math.min(((cagnotte.currentAmount || 0) / cagnotte.goalAmount) * 100, 100);
+
+  // Vérifier les conditions pour le retrait
+  const currentAmount = cagnotte.currentAmount || 0;
+  const goalAmount = cagnotte.goalAmount;
+  const deadline = cagnotte.deadline ? new Date(cagnotte.deadline) : null;
+  const now = new Date();
+
+  const isGoalReached = currentAmount >= goalAmount;
+  const isDeadlinePassed = deadline && now > deadline;
+  const isClosed = cagnotte.status === 'closed';
+  const hasApprovedKyc = kycStatus && kycStatus.statutVerification === 'APPROUVE';
+
+  // Conditions de retrait : propriétaire + (objectif atteint OU deadline dépassée OU fermée) + KYC approuvé
+  const canWithdraw = isOwner && (isGoalReached || isDeadlinePassed || isClosed) && hasApprovedKyc;
+  const canWithdrawWithoutKyc = isOwner && (isGoalReached || isDeadlinePassed || isClosed);
 
   // stats
   console.log('Contributions:', contributions, 'Cagnotte ID:', cagnotte.id, typeof cagnotte.id);
@@ -193,6 +230,25 @@ const CagnotteDetails = () => {
             {cagnotte.title}
           </h1>
 
+          {/* Notification pour le propriétaire quand les conditions de retrait sont remplies */}
+          {isOwner && canWithdraw && cagnotte.status === 'active' && (
+            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm">
+                    <strong>Conditions de retrait remplies :</strong> {isGoalReached ? 'Objectif atteint' : ''} {isGoalReached && isDeadlinePassed ? 'et' : ''} {isDeadlinePassed ? 'Date limite dépassée' : ''}.
+                    Vous pouvez maintenant fermer la cagnotte et retirer les fonds.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between items-center">
             <div style={{ display: "flex", gap: "8px" }}>
               <span
@@ -223,19 +279,21 @@ const CagnotteDetails = () => {
             </div>
 
             <div className="flex gap-[10px]">
-              <button
-                onClick={() => navigate(`/contribute/${cagnotte.id}`)}
-                style={{
-                  backgroundColor: colors.primary,
-                  padding: "12px 20px",
-                  borderRadius: 6,
-                  color: "#fff",
-                  fontWeight: "600",
-                }}
-                className="shadow hover:opacity-90 transition"
-              >
-                Contribuer
-              </button>
+              {cagnotte.status !== 'closed' && (
+                <button
+                  onClick={() => navigate(`/contribute/${cagnotte.id}`)}
+                  style={{
+                    backgroundColor: colors.primary,
+                    padding: "12px 20px",
+                    borderRadius: 6,
+                    color: "#fff",
+                    fontWeight: "600",
+                  }}
+                  className="shadow hover:opacity-90 transition"
+                >
+                  Contribuer
+                </button>
+              )}
               <button
                 onClick={() => navigate(`/contributors/${cagnotte.id}`)}
                 className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
@@ -244,13 +302,95 @@ const CagnotteDetails = () => {
                 Voir les contributeurs
               </button>
               {currentUserData && isOwner && (
-                <button
-                  onClick={() => navigate(`/edit-cagnotte/${cagnotte.id}`)}
-                  className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
-                  style={{ backgroundColor: colors.secondary }}
-                >
-                  Modifier
-                </button>
+                <>
+                  {cagnotte.status === 'active' && (
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm('Êtes-vous sûr de vouloir fermer cette cagnotte ? Elle n\'acceptera plus de contributions.')) return;
+                        try {
+                          await api.put(`/pulls/${cagnotte.id}`, { status: 'closed' });
+                          setRefreshKey(prev => prev + 1);
+                          alert('Cagnotte fermée avec succès');
+                        } catch (error) {
+                          console.error('Erreur lors de la fermeture:', error);
+                          alert('Erreur lors de la fermeture de la cagnotte');
+                        }
+                      }}
+                      className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                      style={{ backgroundColor: '#F87171' }}
+                    >
+                      Fermer la cagnotte
+                    </button>
+                  )}
+                  {cagnotte.status === 'closed' && (
+                    <span className="px-5 py-3 bg-gray-500 text-white font-semibold rounded-md">
+                      Cagnotte fermée
+                    </span>
+                  )}
+                  {canWithdrawWithoutKyc && (
+                    <>
+                      {!hasApprovedKyc ? (
+                        <div className="px-5 py-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-md">
+                          <div className="flex items-center gap-2">
+                            <span>⚠️</span>
+                            <div>
+                              <p className="font-semibold">Vérification d'identité requise</p>
+                              <p className="text-sm">Vous devez soumettre et faire valider vos documents KYC avant de pouvoir retirer des fonds.</p>
+                              <button
+                                onClick={() => navigate('/kyc')}
+                                className="mt-2 px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition"
+                              >
+                                Soumettre KYC
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            const amount = prompt(`Montant à retirer (max: ${cagnotte.currentAmount || 0} ${cagnotte.currency}):`);
+                            if (!amount || isNaN(amount) || parseFloat(amount) <= 0) return;
+
+                            if (parseFloat(amount) > (cagnotte.currentAmount || 0)) {
+                              alert('Montant supérieur au solde disponible');
+                              return;
+                            }
+
+                            if (!confirm(`Confirmer le retrait de ${amount} ${cagnotte.currency} ?`)) return;
+
+                            try {
+                              const response = await api.post(`/pulls/${cagnotte.id}/withdraw`, {
+                                amount: parseFloat(amount),
+                                reason: 'Retrait par le propriétaire'
+                              });
+
+                              if (response.data.success) {
+                                alert(`Retrait de ${amount} ${cagnotte.currency} effectué avec succès!\nRéférence: ${response.data.withdrawal.transactionReference}`);
+                                setRefreshKey(prev => prev + 1);
+                              }
+                            } catch (error) {
+                              console.error('Erreur retrait:', error);
+                              alert('Erreur lors du retrait: ' + (error.response?.data?.error || error.message));
+                            }
+                          }}
+                          className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                          style={{ backgroundColor: '#10B981' }}
+                        >
+                          Retirer les fonds ({cagnotte.currentAmount || 0} {cagnotte.currency} disponible)
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {cagnotte.status === 'active' && (
+                    <button
+                      onClick={() => navigate(`/edit-cagnotte/${cagnotte.id}`)}
+                      className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                      style={{ backgroundColor: colors.secondary }}
+                    >
+                      Modifier
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
