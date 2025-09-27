@@ -8,6 +8,22 @@ import { useAuth } from "../hooks/useAuth";
 import { FaFacebook, FaWhatsapp, FaEnvelope } from "react-icons/fa";
 import { FiShare2 } from "react-icons/fi";
 
+// Fonction utilitaire pour les appels API publics (sans authentification)
+const fetchPublic = async (endpoint) => {
+  const response = await fetch(`http://localhost:5000/api/v1${endpoint}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  
+  return await response.json();
+};
+
 const ITEMS_PER_PAGE = 3;
 
 const CagnotteDetails = () => {
@@ -33,8 +49,20 @@ const CagnotteDetails = () => {
         setLoading(true);
         console.log('Chargement de la cagnotte:', id, 'Refresh key:', refreshKey);
 
-        // Utiliser l'endpoint unifié qui gère l'accès selon l'authentification
-        const response = await api.get(`/pulls/${id}`);
+        // Essayer d'abord l'endpoint public, puis l'endpoint authentifié si nécessaire
+        let response;
+        try {
+          // Tentative avec l'endpoint public d'abord (sans authentification)
+          const publicData = await fetchPublic(`/pulls/${id}`);
+          response = { data: publicData };
+          console.log('✅ Données récupérées via endpoint public');
+        } catch (publicError) {
+          console.log('❌ Endpoint public échoué, tentative avec authentification:', publicError.message);
+          // Si l'endpoint public échoue, essayer avec l'authentification
+          response = await api.get(`/pulls/${id}`);
+          console.log('✅ Données récupérées via endpoint authentifié');
+        }
+        
         console.log('Cagnotte chargée:', response.data);
 
         // Traiter les données reçues
@@ -42,17 +70,36 @@ const CagnotteDetails = () => {
         console.log('Données complètes de l\'API:', cagnotteData);
 
         setCagnotte(cagnotteData);
+        
+        // Si la cagnotte contient déjà les contributions, les utiliser
+        if (cagnotteData.recentContributions && Array.isArray(cagnotteData.recentContributions)) {
+          console.log('✅ Contributions trouvées dans les données de la cagnotte:', cagnotteData.recentContributions);
+          setContributions(cagnotteData.recentContributions);
+        }
 
-        // Fetch contributions separately
-        try {
-          const contribResponse = await api.get(`/pulls/${id}/contributions`);
-          console.log('Contributions chargées:', contribResponse.data);
-          const contribs = contribResponse.data.data || contribResponse.data || [];
-          console.log('Contributions à définir:', contribs);
-          setContributions(contribs);
-        } catch (contribError) {
-          console.error('Erreur lors du chargement des contributions:', contribError);
-          setContributions([]);
+        // Fetch contributions separately si pas déjà incluses
+        if (!cagnotteData.recentContributions || cagnotteData.recentContributions.length === 0) {
+          try {
+            let contribResponse;
+            try {
+              // Tentative sans authentification d'abord
+              const publicContribs = await fetchPublic(`/pulls/${id}/contributions`);
+              contribResponse = { data: publicContribs };
+              console.log('✅ Contributions récupérées via endpoint public');
+            } catch (publicContribError) {
+              console.log('❌ Contributions publiques échouées, tentative avec auth:', publicContribError.message);
+              contribResponse = await api.get(`/pulls/${id}/contributions`);
+              console.log('✅ Contributions récupérées via endpoint authentifié');
+            }
+            
+            console.log('Contributions chargées séparément:', contribResponse.data);
+            const contribs = contribResponse.data.data || contribResponse.data || [];
+            console.log('Contributions à définir:', contribs);
+            setContributions(contribs);
+          } catch (contribError) {
+            console.error('Erreur lors du chargement des contributions:', contribError);
+            setContributions([]);
+          }
         }
 
         setError(null);
@@ -63,7 +110,27 @@ const CagnotteDetails = () => {
         if (err.response?.status === 403) {
           setError("Accès refusé - Cette cagnotte est privée. Connectez-vous avec le compte propriétaire pour y accéder.");
         } else if (err.response?.status === 404) {
-          setError("Cagnotte non trouvée");
+          // Message d'erreur plus informatif avec options de navigation
+          setError(
+            <div className="text-center">
+              <p className="mb-4">Cette cagnotte n'existe pas ou n'est plus accessible.</p>
+              <p className="mb-4 text-sm text-gray-600">Elle pourrait avoir été fermée, supprimée, ou vous n'avez pas les droits d'accès.</p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => navigate('/explorePage')}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                >
+                  Explorer les cagnottes
+                </button>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+                >
+                  Retour au dashboard
+                </button>
+              </div>
+            </div>
+          );
         } else {
           setError(err.response?.data?.message || "Erreur lors du chargement de la cagnotte");
         }
@@ -147,7 +214,7 @@ const CagnotteDetails = () => {
   }, [currentUserData]);
 
   if (loading) return <p className="text-center mt-[80px] text-gray-500">Chargement...</p>;
-  if (error) return <p style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</p>;
+  if (error) return <div style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</div>;
   if (!cagnotte) return <p className="text-center mt-20 text-gray-500">Cagnotte introuvable...</p>;
 
   if (userLoading) return <p className="text-center mt-[80px] text-gray-500">Vérification des accès...</p>;
@@ -176,8 +243,9 @@ const CagnotteDetails = () => {
 
   // stats
   console.log('Contributions:', contributions, 'Cagnotte ID:', cagnotte.id, typeof cagnotte.id);
-  const allContribs = contributions.filter(c => c.cagnotteId?.toString() === cagnotte.id?.toString());
-  console.log('allContribs après filtrage:', allContribs);
+  // Les contributions sont déjà filtrées par l'API, pas besoin de filtrer à nouveau
+  const allContribs = contributions;
+  console.log('allContribs:', allContribs);
   const totalPages = Math.ceil(allContribs.length / ITEMS_PER_PAGE);
   const currentList = allContribs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
@@ -282,21 +350,15 @@ const CagnotteDetails = () => {
               {cagnotte.status !== 'closed' && (
                 <button
                   onClick={() => navigate(`/contribute/${cagnotte.id}`)}
-                  style={{
-                    backgroundColor: colors.primary,
-                    padding: "12px 20px",
-                    borderRadius: 6,
-                    color: "#fff",
-                    fontWeight: "600",
-                  }}
-                  className="shadow hover:opacity-90 transition"
+                  className="px-4 py-2 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                  style={{ backgroundColor: colors.primary }}
                 >
                   Contribuer
                 </button>
               )}
               <button
                 onClick={() => navigate(`/contributors/${cagnotte.id}`)}
-                className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                className="px-4 py-2 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
                 style={{ backgroundColor: colors.primary }}
               >
                 Voir les contributeurs
@@ -323,9 +385,12 @@ const CagnotteDetails = () => {
                     </button>
                   )}
                   {cagnotte.status === 'closed' && (
-                    <span className="px-5 py-3 bg-gray-500 text-white font-semibold rounded-md">
+                    <button 
+                      disabled
+                      className="px-4 py-2 bg-gray-500 text-white font-semibold rounded-md shadow cursor-not-allowed opacity-75"
+                    >
                       Cagnotte fermée
-                    </span>
+                    </button>
                   )}
                   {canWithdrawWithoutKyc && (
                     <>
@@ -473,9 +538,10 @@ const CagnotteDetails = () => {
               <div className="bg-gray-50 rounded-xl p-4 shadow-inner space-y-3">
                 {currentList.map((c) => (
                   <div key={c.id} className="border-b last:border-b-0 pb-2">
-                    <div className="flex justify-between text-gray-800 font-medium">
+                    <div className="flex items-center gap-2 text-gray-800 font-medium">
                       <span>{c.anonymous ? "Anonyme" : c.contributor?.name || c.user?.name || "Utilisateur"}</span>
-                      <span>{c.amount.toLocaleString()} {cagnotte.currency}</span>
+                      <span className="text-sm text-gray-500">•</span>
+                      <span className="text-blue-600 font-semibold">{c.amount.toLocaleString()} {cagnotte.currency}</span>
                     </div>
                     <p className="text-sm text-gray-600 italic mt-1">
                       {c.message ? `“${c.message}”` : "Aucun message, soyez le premier à soutenir !"}

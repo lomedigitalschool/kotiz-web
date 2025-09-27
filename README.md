@@ -351,7 +351,7 @@ Développé par **Lome Digital School**
 
 ## ✨ Nouvelles fonctionnalités développées
 
-### Session de développement actuelle
+### Session de développement actuelle (v2.1)
 
 #### 🔧 Corrections et améliorations apportées
 
@@ -413,6 +413,22 @@ Développé par **Lome Digital School**
 - **Admin Panel** : `http://localhost:5000/admin` (AdminJS)
 - **Uploads** : `http://localhost:5000/uploads/` (fichiers statiques)
 
+#### 🆕 Nouvelles corrections (v2.1)
+
+9. **Accès aux cagnottes privées**
+   - Accès limité aux cagnottes privées depuis explorePage
+   - Masquage approprié des données sensibles pour les non-propriétaires
+   - Stratégie de fallback pour les appels API (public → authentifié)
+
+10. **Interface utilisateur uniformisée**
+    - Taille des boutons uniformisée sur toutes les pages
+    - Affichage amélioré des contributeurs (nom + montant associés)
+    - Correction de l'affichage des contributions sur les pages de détails
+
+11. **Support SPA pour Netlify**
+    - Fichier `_redirects` pour éviter les erreurs 404 au refresh
+    - Configuration Vite optimisée pour le déploiement
+
 #### 📊 Fonctionnalités opérationnelles
 
 - ✅ Inscription avec messages de succès
@@ -423,6 +439,10 @@ Développé par **Lome Digital School**
 - ✅ Dashboard avec statistiques et graphiques
 - ✅ Profil utilisateur avec données réelles
 - ✅ Gestion complète de l'authentification
+- ✅ **Accès aux cagnottes privées avec masquage** *(nouveau)*
+- ✅ **Boutons uniformisés sur toutes les pages** *(nouveau)*
+- ✅ **Support SPA complet pour Netlify** *(nouveau)*
+- ✅ **Affichage correct des contributeurs** *(nouveau)*
 
 ## 🔗 Liens utiles
 

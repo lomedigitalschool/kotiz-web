@@ -31,7 +31,27 @@ const ContributorsPage = () => {
 
   if (loading)  return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}> Chargement...</p> ;
   if (error) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#dc2626" }}>{error}</p>;
-  if (!cagnotte) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>Cagnotte introuvable.</p>;
+  if (!cagnotte) {
+    return (
+      <div style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>
+        <p className="mb-4">Cette cagnotte n'existe pas ou n'est plus accessible.</p>
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={() => navigate('/explorePage')}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+          >
+            Explorer les cagnottes
+          </button>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+          >
+            Retour au dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const totalPages = Math.ceil(cContributors.length / ITEMS_PER_PAGE);
   const currentContributors = cContributors.slice(
@@ -66,7 +86,7 @@ const ContributorsPage = () => {
             style={{ backgroundColor: "#f3f4f6" }}
           >
             <span style={{ maxWidth: "70%", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {contrib.anonymous ? "Anonyme" : contrib.user}
+              {contrib.anonymous ? "Anonyme" : contrib.contributor?.name || contrib.user}
             </span>
             <span className="font-semibold">{contrib.amount.toLocaleString()} {contrib.currency}</span>
           </div>

@@ -315,9 +315,11 @@ const Dashboard = () => {
       <h2 className="text-2xl font-bold mb-4">Mes Cagnottes</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {cagnottes.map(c => {
-          const collectedAmount = parseFloat(c.currentAmount || c.collectedAmount || 0);
-          const goalAmount = c.goalAmount || 1; // Éviter division par zéro
-          const progress = goalAmount > 0 ? Math.min((collectedAmount / goalAmount) * 100, 100) : 0;
+           const cagId = c.id;
+           const agg = contributionsAggregated.get(cagId);
+           const collectedAmount = agg ? agg.total : parseFloat(c.currentAmount || c.collectedAmount || 0);
+           const goalAmount = c.goalAmount || 1; // Éviter division par zéro
+           const progress = goalAmount > 0 ? Math.min((collectedAmount / goalAmount) * 100, 100) : 0;
           return (
             <div key={c.id} className="bg-white rounded-2xl shadow p-6 cursor-pointer" onClick={() => navigate(`/cagnottes/${c.id}`)}>
               {c.imageUrl && c.imageUrl !== 'null' && c.imageUrl !== 'undefined' ? (
@@ -383,8 +385,8 @@ const Dashboard = () => {
               {/* Aperçu contributeurs */}
               <div className="flex flex-col gap-1 mb-2">
                 {previewContributors.map(contrib => (
-                  <div key={contrib.id} className="flex justify-between items-center px-2 py-1 rounded text-sm" style={{ backgroundColor: "#f3f4f6" }} title={contrib.anonymous ? "Anonyme" : contrib.user} >
-                    <span className="truncate">{contrib.anonymous ? "Anonyme" : contrib.user}</span>
+                  <div key={contrib.id} className="flex justify-between items-center px-2 py-1 rounded text-sm" style={{ backgroundColor: "#f3f4f6" }} title={contrib.anonymous ? "Anonyme" : contrib.contributor?.name || contrib.user} >
+                    <span className="truncate">{contrib.anonymous ? "Anonyme" : contrib.contributor?.name || contrib.user}</span>
                     <span className="font-semibold">{(parseFloat(contrib.amount) || 0).toLocaleString()} {contrib.currency}</span>
                   </div>
                 ))}

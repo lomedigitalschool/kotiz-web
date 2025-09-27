@@ -192,6 +192,11 @@ export const useCagnotteStore = create((set, get) => ({
       const data = response.data;
       console.log('✅ Cagnottes utilisateur récupérées:', data.length, 'cagnottes');
       console.log('📊 Données reçues du backend:', data);
+      
+      // Debug: afficher le statut de chaque cagnotte
+      data.forEach(pull => {
+        console.log(`  - ID: ${pull.id}, Titre: ${pull.title}, Statut: ${pull.status}, Type: ${pull.type}`);
+      });
 
       // Les contributions seront récupérées séparément par fetchUserContributions
       // Pour l'instant, on ne calcule pas les montants ici
