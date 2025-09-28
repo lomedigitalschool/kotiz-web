@@ -544,6 +544,44 @@ export const useCagnotteStore = create((set, get) => ({
     }
   },
 
+  // récupération des contributions d'une cagnotte spécifique
+  fetchCagnotteContributions: async (cagnotteId) => {
+    set({ loading: true, error: null });
+
+    try {
+      console.log('🔍 Récupération des contributions de la cagnotte:', cagnotteId);
+
+      // Utiliser l'endpoint backend pour récupérer toutes les contributions de la cagnotte
+      const response = await api.get(`/pulls/${cagnotteId}/contributions`);
+      const contributions = response.data.data || response.data;
+
+      console.log('✅ Contributions de la cagnotte récupérées:', contributions.length);
+
+      // Enrichir les contributions avec les informations des contributeurs
+      const enrichedContributions = contributions.map(contrib => ({
+        ...contrib,
+        // Assurer que cagnotteId est défini
+        cagnotteId: contrib.cagnotteId || contrib.pullId || cagnotteId,
+        // Utiliser contributor.name si disponible, sinon contributorName
+        contributor: contrib.contributor || {
+          name: contrib.contributorName || 'Anonyme'
+        },
+        // Assurer que le montant est un nombre
+        amount: parseFloat(contrib.amount) || 0,
+        currency: contrib.currency || 'XOF'
+      }));
+
+      return enrichedContributions;
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération des contributions de la cagnotte:', error);
+      set({ loading: false, error: error.message });
+      return [];
+    } finally {
+      set({ loading: false });
+    }
+  },
+
   // fonction de reset pour la déconnexion
   reset: () => {
     console.log('🔄 [CagnotteStore] Reset complet du store');

@@ -167,10 +167,60 @@ const CagnotteDetails = () => {
       console.log('Retour sur la page, rafraîchissement');
       setRefreshKey(prev => prev + 1);
     };
-    
+
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
+
+  // Clôture automatique de la cagnotte
+  useEffect(() => {
+    const checkAndCloseCagnotte = async () => {
+      if (!cagnotte || cagnotte.status !== 'active' || !contributions) return;
+
+      const currentAmount = cagnotte.currentAmount || 0;
+      const goalAmount = cagnotte.goalAmount;
+      const deadline = cagnotte.deadline ? new Date(cagnotte.deadline) : null;
+      const now = new Date();
+      const participantLimit = cagnotte.participantLimit;
+      const nbContribs = contributions.length;
+
+      // Conditions de clôture automatique
+      const isGoalReached = currentAmount >= goalAmount;
+      const isDeadlinePassed = deadline && now > deadline;
+      const isParticipantLimitReached = participantLimit && nbContribs >= participantLimit;
+
+      const shouldClose = isGoalReached || isDeadlinePassed || isParticipantLimitReached;
+
+      if (shouldClose) {
+        console.log('🔒 Conditions de clôture remplies, fermeture automatique de la cagnotte:', cagnotte.id);
+        console.log('📊 Détails:', {
+          isGoalReached,
+          currentAmount,
+          goalAmount,
+          isDeadlinePassed,
+          deadline,
+          isParticipantLimitReached,
+          participantLimit,
+          nbContribs
+        });
+
+        try {
+          await api.put(`/pulls/${cagnotte.id}`, { status: 'closed' });
+          console.log('✅ Cagnotte fermée automatiquement');
+          setRefreshKey(prev => prev + 1); // Rafraîchir les données
+        } catch (error) {
+          console.error('❌ Erreur lors de la clôture automatique:', error);
+        }
+      }
+    };
+
+    // Vérifier immédiatement et toutes les 30 secondes
+    checkAndCloseCagnotte();
+    const interval = setInterval(checkAndCloseCagnotte, 30000);
+
+    return () => clearInterval(interval);
+  }, [cagnotte, contributions]);
+
 
   // accès utilisateur - récupérer l'utilisateur depuis l'API
   useEffect(() => {
@@ -298,19 +348,19 @@ const CagnotteDetails = () => {
             {cagnotte.title}
           </h1>
 
-          {/* Notification pour le propriétaire quand les conditions de retrait sont remplies */}
-          {isOwner && canWithdraw && cagnotte.status === 'active' && (
-            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md">
+          {/* Notification pour le propriétaire quand les conditions de clôture sont remplies */}
+          {isOwner && cagnotte.status === 'active' && (isGoalReached || isDeadlinePassed || (cagnotte.participantLimit && nbContribs >= cagnotte.participantLimit)) && (
+            <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-md">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div className="ml-3">
                   <p className="text-sm">
-                    <strong>Conditions de retrait remplies :</strong> {isGoalReached ? 'Objectif atteint' : ''} {isGoalReached && isDeadlinePassed ? 'et' : ''} {isDeadlinePassed ? 'Date limite dépassée' : ''}.
-                    Vous pouvez maintenant fermer la cagnotte et retirer les fonds.
+                    <strong>Conditions de clôture remplies :</strong> {isGoalReached ? 'Objectif atteint' : ''} {isGoalReached && isDeadlinePassed ? 'et' : ''} {isDeadlinePassed ? 'Date limite dépassée' : ''} {cagnotte.participantLimit && nbContribs >= cagnotte.participantLimit ? `Limite de participants (${cagnotte.participantLimit}) atteinte` : ''}.
+                    La cagnotte sera fermée automatiquement et vous pourrez retirer les fonds.
                   </p>
                 </div>
               </div>
@@ -320,19 +370,21 @@ const CagnotteDetails = () => {
           <div className="flex justify-between items-center">
             <div style={{ display: "flex", gap: "8px" }}>
               <span
-                className="px-3 py-1 rounded-full text-white text-sm font-semibold shadow"
+                className="px-3 py-1 rounded-full text-white text-xs font-semibold shadow inline-flex items-center whitespace-nowrap"
                 style={{
                   backgroundColor:
                     cagnotte.status === "active"
                       ? colors.primary
                       : cagnotte.status === "closed"
-                        ? "#F87171"
+                        ? "#DC2626"
                         : "#FBBF24",
                 }}
               >
-                {cagnotte.status
-                  ? cagnotte.status[0].toUpperCase() + cagnotte.status.slice(1)
-                  : "Inconnu"}
+                <span style={{ color: cagnotte.status === "closed" ? "#FFFFFF" : "white" }}>
+                  {cagnotte.status
+                    ? cagnotte.status[0].toUpperCase() + cagnotte.status.slice(1)
+                    : "Inconnu"}
+                </span>
 
                 {" | "}
 
@@ -358,14 +410,14 @@ const CagnotteDetails = () => {
               )}
               <button
                 onClick={() => navigate(`/contributors/${cagnotte.id}`)}
-                className="px-4 py-2 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                className="px-2 py-1 text-white font-semibold rounded-md shadow hover:opacity-90 transition text-sm"
                 style={{ backgroundColor: colors.primary }}
               >
                 Voir les contributeurs
               </button>
               {currentUserData && isOwner && (
                 <>
-                  {cagnotte.status === 'active' && (
+                  {cagnotte.status === 'active' && !(isGoalReached || isDeadlinePassed || (cagnotte.participantLimit && nbContribs >= cagnotte.participantLimit)) && (
                     <button
                       onClick={async () => {
                         if (!window.confirm('Êtes-vous sûr de vouloir fermer cette cagnotte ? Elle n\'acceptera plus de contributions.')) return;
@@ -378,16 +430,17 @@ const CagnotteDetails = () => {
                           alert('Erreur lors de la fermeture de la cagnotte');
                         }
                       }}
-                      className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                      className="px-4 py-2 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
                       style={{ backgroundColor: '#F87171' }}
                     >
                       Fermer la cagnotte
                     </button>
                   )}
                   {cagnotte.status === 'closed' && (
-                    <button 
+                    <button
                       disabled
-                      className="px-4 py-2 bg-gray-500 text-white font-semibold rounded-md shadow cursor-not-allowed opacity-75"
+                      className="px-4 py-1 bg-red-600 text-white font-semibold rounded-md shadow cursor-not-allowed opacity-75 text-sm"
+                      style={{ backgroundColor: '#DC2626' }}
                     >
                       Cagnotte fermée
                     </button>
@@ -403,7 +456,7 @@ const CagnotteDetails = () => {
                               <p className="text-sm">Vous devez soumettre et faire valider vos documents KYC avant de pouvoir retirer des fonds.</p>
                               <button
                                 onClick={() => navigate('/kyc')}
-                                className="mt-2 px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition"
+                                className="mt-2 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
                               >
                                 Soumettre KYC
                               </button>
@@ -438,7 +491,7 @@ const CagnotteDetails = () => {
                               alert('Erreur lors du retrait: ' + (error.response?.data?.error || error.message));
                             }
                           }}
-                          className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                          className="px-4 py-2 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
                           style={{ backgroundColor: '#10B981' }}
                         >
                           Retirer les fonds ({cagnotte.currentAmount || 0} {cagnotte.currency} disponible)
@@ -449,7 +502,7 @@ const CagnotteDetails = () => {
                   {cagnotte.status === 'active' && (
                     <button
                       onClick={() => navigate(`/edit-cagnotte/${cagnotte.id}`)}
-                      className="px-5 py-3 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
+                      className="px-4 py-2 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
                       style={{ backgroundColor: colors.secondary }}
                     >
                       Modifier
@@ -578,7 +631,7 @@ const CagnotteDetails = () => {
               <p className="break-all text-gray-700">{shareLink}</p>
               <button
                 onClick={handleCopyLink}
-                className="px-6 py-2 text-white rounded-md hover:opacity-90 transition"
+                className="px-4 py-2 text-white rounded-md hover:opacity-90 transition"
                 style={{ backgroundColor: colors.primary }}
               >
                 Copier le lien

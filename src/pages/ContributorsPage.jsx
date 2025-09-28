@@ -3,31 +3,67 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { FaArrowLeft } from "react-icons/fa";
+import io from "socket.io-client";
 
 const ITEMS_PER_PAGE = 10;
 
 const ContributorsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { cagnottes, contributions, fetchAllCagnottes, fetchUserContributions, loading, error } = useCagnotteStore();
+  const { fetchCagnotte, fetchCagnotteContributions, loading, error } = useCagnotteStore();
   const [page, setPage] = useState(1);
   const [cContributors, setCContributors] = useState([])  ;
   const [cagnotte, setCagnotte] = useState(null);
+  const [socket, setSocket] = useState(null);
 
   // Charger les données
   useEffect(() => {
-    fetchAllCagnottes();
-    fetchUserContributions();
-  }, []); // ✅ Dépendances vides pour éviter les boucles
+    const loadData = async () => {
+      // Charger la cagnotte spécifique par ID (même si fermée pour le propriétaire)
+      const cagnotteData = await fetchCagnotte(id);
+      setCagnotte(cagnotteData);
 
+      // Charger les contributions spécifiques à cette cagnotte
+      const contributions = await fetchCagnotteContributions(id);
+      setCContributors(contributions);
+      setPage(1);
+    };
+
+    loadData();
+  }, [id]); // ✅ Dépendances avec id pour recharger quand l'id change
+
+  // Configuration Socket.io pour les mises à jour temps réel
   useEffect(() => {
-    const foundCagnotte = cagnottes.find(c => c.id === parseInt  (id));
-    setCagnotte(foundCagnotte);
+    // Connexion Socket.io
+    const newSocket = io('http://localhost:5000', {
+      transports: ['websocket', 'polling']
+    });
 
-    const filteredContribs = contributions.filter(contrib => contrib.cagnotteId === parseInt(id));
-    setCContributors  (filteredContribs);
-    setPage(1);
-  }, [id, cagnottes, contributions]);
+    // Rejoindre la room des mises à jour publiques
+    newSocket.emit('join-public-updates');
+
+    // Écouter les nouvelles contributions
+    newSocket.on('contribution-completed', (data) => {
+      console.log('🔄 Nouvelle contribution reçue:', data);
+
+      // Si la contribution concerne cette cagnotte, rafraîchir les données
+      if (data.pullId === parseInt(id)) {
+        console.log('📊 Rafraîchissement des contributions pour cette cagnotte');
+        fetchCagnotteContributions(id).then(contributions => {
+          setCContributors(contributions);
+        });
+      }
+    });
+
+    setSocket(newSocket);
+
+    // Nettoyage
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+    };
+  }, [id]);
 
   if (loading)  return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}> Chargement...</p> ;
   if (error) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#dc2626" }}>{error}</p>;
@@ -38,13 +74,13 @@ const ContributorsPage = () => {
         <div className="flex gap-3 justify-center">
           <button
             onClick={() => navigate('/explorePage')}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+            className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
           >
             Explorer les cagnottes
           </button>
           <button
             onClick={() => navigate('/dashboard')}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+            className="px-6 py-3 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
           >
             Retour au dashboard
           </button>
@@ -86,9 +122,9 @@ const ContributorsPage = () => {
             style={{ backgroundColor: "#f3f4f6" }}
           >
             <span style={{ maxWidth: "70%", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {contrib.anonymous ? "Anonyme" : contrib.contributor?.name || contrib.user}
+              {contrib.contributor?.name || contrib.contributorName || "Anonyme"}
             </span>
-            <span className="font-semibold">{contrib.amount.toLocaleString()} {contrib.currency}</span>
+            <span className="font-semibold">{parseFloat(contrib.amount).toLocaleString()} {contrib.currency || 'XOF'}</span>
           </div>
         ))}
       </div>
@@ -100,7 +136,7 @@ const ContributorsPage = () => {
           <button
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
-            className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 disabled:opacity-50 transition-colors"
+            className="px-6 py-3 rounded bg-gray-300 hover:bg-gray-400 disabled:opacity-50 transition-colors"
           >
             Précédent
           </button>
@@ -110,7 +146,7 @@ const ContributorsPage = () => {
             disabled={page >= totalPages}
 
             onClick={() => setPage(page + 1)}
-            className="px-4 py-2 rounded text-white disabled:opacity-50"
+            className="px-6 py-3 rounded text-white disabled:opacity-50"
             style={{ backgroundColor: colors.primary }}
           >
             Suivant

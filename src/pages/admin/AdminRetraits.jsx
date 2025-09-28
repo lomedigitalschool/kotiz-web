@@ -81,14 +81,14 @@ const AdminRetraits = () => {
     if (!confirm('Confirmer le traitement de ce retrait ? Cette action marquera le retrait comme traité.')) return;
 
     try {
-      // Ici, vous pouvez implémenter l'API pour traiter le retrait
-      alert('Fonctionnalité de traitement des retraits à implémenter côté backend');
-      // const response = await api.post(`/admin/retraits/${pullId}/process`);
-      // if (response.data.success) {
-      //   fetchRetraits(); // Recharger les données
-      // }
+      const response = await api.post(`/admin/retraits/${pullId}/process`);
+      if (response.data.success) {
+        alert('Retrait traité avec succès !');
+        fetchRetraits(); // Recharger les données
+      }
     } catch (error) {
       console.error('Erreur traitement retrait:', error);
+      alert('Erreur lors du traitement du retrait: ' + error.response?.data?.error || error.message);
     }
   };
 

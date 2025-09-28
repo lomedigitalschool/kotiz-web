@@ -321,7 +321,7 @@ const Dashboard = () => {
            const goalAmount = c.goalAmount || 1; // Éviter division par zéro
            const progress = goalAmount > 0 ? Math.min((collectedAmount / goalAmount) * 100, 100) : 0;
           return (
-            <div key={c.id} className="bg-white rounded-2xl shadow p-6 cursor-pointer" onClick={() => navigate(`/cagnottes/${c.id}`)}>
+            <div key={c.id} className={`bg-white rounded-2xl shadow p-6 cursor-pointer ${c.status === 'closed' ? 'border-2 border-red-200 bg-red-50' : ''}`} onClick={() => navigate(`/cagnottes/${c.id}`)}>
               {c.imageUrl && c.imageUrl !== 'null' && c.imageUrl !== 'undefined' ? (
                 <img src={c.imageUrl.startsWith('http') ? c.imageUrl : `https://kotiz-back.onrender.com${c.imageUrl}`} alt={c.title} className="w-full h-40 object-cover rounded-lg mb-4" loading="lazy" onError={(e) => { e.target.style.display = 'none'; }} />
               ) : (
@@ -334,10 +334,12 @@ const Dashboard = () => {
               {/* Type et statut */}
               <div className="flex justify-between mb-2 text-sm text-gray-600">
                 <span>Type: {c.type}</span>
-                <span>Statut: {c.status}</span>
+                <span className={`font-semibold ${c.status === 'closed' ? 'text-red-600 bg-red-100 px-2 py-1 rounded' : ''}`}>
+                  Statut: {c.status === 'closed' ? 'Fermé' : c.status === 'active' ? 'Actif' : c.status}
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
-                <div className="h-4 rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: colors.primary }} />
+                <div className="h-4 rounded-full transition-all duration-500" style={{ width: `${progress}%`, backgroundColor: c.status === 'closed' ? '#DC2626' : colors.primary }} />
               </div>
               <p className="text-right text-gray-700 font-semibold mb-2">
                 {collectedAmount.toLocaleString()} / {goalAmount.toLocaleString()} {c.currency}
@@ -346,26 +348,35 @@ const Dashboard = () => {
                 <button onClick={() => navigate(`/cagnottes/${c.id}`)} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: colors.secondary }} >
                   Voir détails
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); navigate(`/edit-cagnotte/${c.id}`); }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: colors.primary }} >
-                  Modifier
-                </button>
-                <button onClick={async (e) => {
-                  e.stopPropagation();
-                  if (!window.confirm(`Supprimer la cagnotte "${c.title}" ?`)) return;
-                  try {
-                    // Appel API pour supprimer la cagnotte
-                    await api.delete(`/pulls/${c.id}`);
-                    // Supprimer du store local
-                    deleteCagnotte(c.id);
-                    alert(`Cagnotte "${c.title}" supprimée avec succès`);
-                    // Pas besoin de redirection car on est déjà sur le dashboard
-                  } catch (error) {
-                    console.error('Erreur lors de la suppression:', error);
-                    alert('Erreur lors de la suppression. Vérifiez que vous êtes le propriétaire.');
-                  }
-                }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: "#EF4444" }} >
-                  Supprimer
-                </button>
+                {c.status !== 'closed' && (
+                  <>
+                    <button onClick={(e) => { e.stopPropagation(); navigate(`/edit-cagnotte/${c.id}`); }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: colors.primary }} >
+                      Modifier
+                    </button>
+                    <button onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!window.confirm(`Supprimer la cagnotte "${c.title}" ?`)) return;
+                      try {
+                        // Appel API pour supprimer la cagnotte
+                        await api.delete(`/pulls/${c.id}`);
+                        // Supprimer du store local
+                        deleteCagnotte(c.id);
+                        alert(`Cagnotte "${c.title}" supprimée avec succès`);
+                        // Pas besoin de redirection car on est déjà sur le dashboard
+                      } catch (error) {
+                        console.error('Erreur lors de la suppression:', error);
+                        alert('Erreur lors de la suppression. Vérifiez que vous êtes le propriétaire.');
+                      }
+                    }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: "#EF4444" }} >
+                      Supprimer
+                    </button>
+                  </>
+                )}
+                {c.status === 'closed' && (
+                  <span className="px-4 py-2 bg-red-600 text-white rounded-md font-semibold">
+                    Cagnotte fermée
+                  </span>
+                )}
               </div>
             </div>
           );
