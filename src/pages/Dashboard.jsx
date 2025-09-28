@@ -12,9 +12,24 @@ import logoHorizontale from "../assets/logos/logo_horizontale.png";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const { cagnottes, fetchUserCagnottes, contributions, fetchUserContributions, loading, error, deleteCagnotte } = useCagnotteStore();
+  const { cagnottes, fetchUserCagnottes, contributions, fetchUserContributions, loading, error, deleteCagnotte, fetchCagnotteContributions } = useCagnotteStore();
   const [userStats, setUserStats] = useState({ totalCollected: 0, activeCount: 0, totalContributors: 0 });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [cagnotteContributions, setCagnotteContributions] = useState({});
+
+  const loadCagnotteContributions = async (cagnottesList) => {
+    const contribs = {};
+    for (const c of cagnottesList) {
+      try {
+        const data = await fetchCagnotteContributions(c.id);
+        contribs[c.id] = data;
+      } catch (error) {
+        console.error('Erreur chargement contributions cagnotte', c.id, error);
+        contribs[c.id] = [];
+      }
+    }
+    setCagnotteContributions(contribs);
+  };
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -35,6 +50,9 @@ const Dashboard = () => {
         // Fetch cagnottes d'abord (pour initialiser map), puis contributions
         await fetchUserCagnottes();
         await fetchUserContributions();
+        // Charger les contributions pour chaque cagnotte
+        const currentCagnottes = useCagnotteStore.getState().cagnottes;
+        await loadCagnotteContributions(currentCagnottes);
         console.log('✅ Dashboard: Données utilisateur chargées');
       } catch (error) {
         console.error('❌ Dashboard: Erreur lors du chargement:', error);
@@ -45,10 +63,12 @@ const Dashboard = () => {
   }, []); // une seule fois
 
   useEffect(() => {
-    const handleFocus = () => {
+    const handleFocus = async () => {
       console.log('🔄 Dashboard: Rafraîchissement au focus');
-      fetchUserCagnottes();
-      fetchUserContributions();
+      await fetchUserCagnottes();
+      await fetchUserContributions();
+      const currentCagnottes = useCagnotteStore.getState().cagnottes;
+      await loadCagnotteContributions(currentCagnottes);
     };
 
     window.addEventListener('focus', handleFocus);
@@ -56,10 +76,12 @@ const Dashboard = () => {
   }, [fetchUserCagnottes, fetchUserContributions]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       console.log('🔄 Dashboard: Rafraîchissement automatique');
-      fetchUserCagnottes();
-      fetchUserContributions();
+      await fetchUserCagnottes();
+      await fetchUserContributions();
+      const currentCagnottes = useCagnotteStore.getState().cagnottes;
+      await loadCagnotteContributions(currentCagnottes);
     }, 60000);
 
     return () => clearInterval(interval);
@@ -393,7 +415,7 @@ const Dashboard = () => {
       <h2 className="text-2xl font-bold mb-4">Contributeurs par cagnotte</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
         {cagnottes.map(c => {
-          const cContributors = contributions.filter(contrib => contrib.cagnotteId === c.id);
+          const cContributors = cagnotteContributions[c.id] || [];
           if (cContributors.length === 0) return null;
           const previewContributors = cContributors.slice(0, 3);
           return (
@@ -401,12 +423,15 @@ const Dashboard = () => {
               <h3 className="font-semibold mb-2">{c.title}</h3>
               {/* Aperçu contributeurs */}
               <div className="flex flex-col gap-1 mb-2">
-                {previewContributors.map(contrib => (
-                  <div key={contrib.id} className="flex justify-between items-center px-2 py-1 rounded text-sm" style={{ backgroundColor: "#f3f4f6" }} title={contrib.anonymous ? "Anonyme" : contrib.contributor?.name || contrib.user} >
-                    <span className="truncate">{contrib.anonymous ? "Anonyme" : contrib.contributor?.name || contrib.user}</span>
-                    <span className="font-semibold">{(parseFloat(contrib.amount) || 0).toLocaleString()} {contrib.currency}</span>
-                  </div>
-                ))}
+                {previewContributors.map(contrib => {
+                  const isAnonymous = !contrib.userId || !contrib.contributor;
+                  return (
+                    <div key={contrib.id} className="flex justify-between items-center px-2 py-1 rounded text-sm" style={{ backgroundColor: "#f3f4f6" }} title={isAnonymous ? "Anonyme" : contrib.contributor?.name || "Contributeur"} >
+                      <span className="truncate">{isAnonymous ? "Anonyme" : contrib.contributor?.name || "Contributeur"}</span>
+                      <span className="font-semibold">{(parseFloat(contrib.amount) || 0).toLocaleString()} {contrib.currency}</span>
+                    </div>
+                  );
+                })}
               </div>
               {cContributors.length > 3 && (
                 <button onClick={() => navigate(`/contributors/${c.id}`)} className="mt-auto px-3 py-1 rounded text-white hover:opacity-90 transition text-sm" style={{ backgroundColor: colors.primary }} >
