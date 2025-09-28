@@ -4,8 +4,8 @@ import { FiChevronDown } from 'react-icons/fi';
 // Liste complète des pays avec leurs codes et drapeaux
 const countries = [
   // Afrique
-  { code: '+225', name: 'Côte d\'Ivoire', flag: '🇨🇮' },
   { code: '+228', name: 'Togo', flag: '🇹🇬' },
+  { code: '+225', name: 'Côte d\'Ivoire', flag: '🇨🇮' },
   { code: '+229', name: 'Bénin', flag: '🇧🇯' },
   { code: '+226', name: 'Burkina Faso', flag: '🇧🇫' },
   { code: '+227', name: 'Niger', flag: '🇳🇪' },

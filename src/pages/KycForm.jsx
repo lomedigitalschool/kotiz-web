@@ -2,6 +2,7 @@ import api from "../services/api";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
+import logoHorizontale from "../assets/logos/logo_horizontale.png";
 
 export default function KycFormForm() {
     const navigate = useNavigate();
@@ -83,7 +84,7 @@ export default function KycFormForm() {
                     onClick={() => navigate("/landing")}
                 >
                     <img
-                        src="/src/assets/logos/logo_horizontale.png"
+                        src={logoHorizontale}
                         alt="Logo horizontal"
                         className="w-40"
                     />

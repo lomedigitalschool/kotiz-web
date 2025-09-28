@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
 import { FaHome, FaSearch, FaUser } from "react-icons/fa";
 import DatePicker from "../components/DatePicker";
+import logoHorizontale from "../assets/logos/logo_horizontale.png";
 
 
 const CreerCagnotte = () => {
@@ -209,7 +210,7 @@ const CreerCagnotte = () => {
       {/* Header */}
       <header className="w-full border-b border-[#e5e8ea] flex items-center justify-between px-10 py-4 bg-white">
         <img
-          src="/src/assets/logos/logo_horizontale.png"
+          src={logoHorizontale}
           alt="Logo horizontal"
           className="w-40 cursor-pointer"
           onClick={() => navigate("/landing")}

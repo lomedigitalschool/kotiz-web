@@ -334,7 +334,13 @@ const Dashboard = () => {
               {/* Type et statut */}
               <div className="flex justify-between mb-2 text-sm text-gray-600">
                 <span>Type: {c.type}</span>
-                <span className={`font-semibold ${c.status === 'closed' ? 'text-red-600 bg-red-100 px-2 py-1 rounded' : ''}`}>
+                <span className={`font-semibold px-2 py-1 rounded ${
+                  c.status === 'closed'
+                    ? 'text-red-600 bg-red-100'
+                    : c.status === 'active'
+                    ? 'text-blue-600 bg-blue-100'
+                    : ''
+                }`}>
                   Statut: {c.status === 'closed' ? 'Fermé' : c.status === 'active' ? 'Actif' : c.status}
                 </span>
               </div>

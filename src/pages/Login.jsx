@@ -148,7 +148,7 @@ export const Login = () => {
 
       // Validation basique du numéro
       if (!formattedPhone.match(/^\+[1-9]\d{1,14}$/)) {
-        setError("Format de numéro de téléphone invalide. Utilisez le format international (+225...)");
+        setError("Format de numéro de téléphone invalide. Utilisez le format international (+228...)");
         return;
       }
 
@@ -312,7 +312,7 @@ export const Login = () => {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full p-3 rounded-lg bg-[#4ac26033] text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4ca260]"
-                  placeholder="votre@email.com ou +22501020304"
+                  placeholder="votre@email.com ou +22801020304"
                   disabled={loading}
                 />
               </div>

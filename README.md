@@ -1,6 +1,6 @@
 # Kotiz Web
 
-Frontend de l'application Kotiz développée par Lome Digital School - Plateforme de cagnottes collaboratives avec vérification d'identité sécurisée.
+Frontend de l'application Kotiz développée par Lome Digital School - Plateforme de cagnottes collaboratives avec vérification d'identité sécurisée (v0.1.0).
 
 ## 🚀 Fonctionnalités
 
@@ -83,7 +83,6 @@ Configurer le fichier `.env` :
 ```env
 VITE_API_BASE_URL=http://localhost:5000/api/v1
 VITE_APP_NAME=Kotiz
-VITE_APP_VERSION=1.0.0
 ```
 
 4. **Lancer l'application**
@@ -240,31 +239,32 @@ npm run lint         # Linting du code
 ### Technologies utilisées
 - **React 18** - Framework frontend avec hooks
 - **Vite** - Build tool et serveur de développement rapide
-- **React Router v6** - Routage côté client avancé
+- **React Router DOM v6** - Routage côté client avancé
 - **Axios** - Client HTTP avec intercepteurs
 - **Tailwind CSS** - Framework CSS utilitaire
 - **Zustand** - Gestion d'état légère et performante
+- **Socket.io-client** - Communications temps réel
+- **Firebase** - Authentification et services cloud
+- **Framer Motion** - Animations et transitions
 - **React QR Code** - Génération de QR codes
 - **Recharts** - Bibliothèque de graphiques interactifs
+- **React CSV** - Export de données CSV
+- **React Day Picker** - Sélecteur de dates
 - **UUID** - Génération d'identifiants uniques
 - **React Icons** - Collection d'icônes
+- **Date-fns** - Manipulation des dates
 
 ### Variables d'environnement
 ```env
-# API Backend (port 5000 pour le backend)
+# API Backend
 VITE_API_BASE_URL=http://localhost:5000/api/v1
 
 # Configuration de l'application
 VITE_APP_NAME=Kotiz
-VITE_APP_VERSION=1.0.0
-
-# Upload de fichiers
-VITE_MAX_FILE_SIZE=5242880  # 5MB
-VITE_ALLOWED_FILE_TYPES=image/jpeg,image/png,application/pdf
 ```
-
 ### Architecture des services
-- **Frontend** : `http://localhost:3000` (Vite + React)
+
+- **Frontend** : `http://localhost:5173` (Vite + React)
 - **Backend API** : `http://localhost:5000/api/v1` (Express + PostgreSQL)
 - **Admin Panel** : `http://localhost:5000/admin` (AdminJS)
 - **Base de données** : PostgreSQL
@@ -351,7 +351,7 @@ Développé par **Lome Digital School**
 
 ## ✨ Nouvelles fonctionnalités développées
 
-### Session de développement actuelle (v2.1)
+### Session de développement actuelle (v0.1.0)
 
 #### 🔧 Corrections et améliorations apportées
 
