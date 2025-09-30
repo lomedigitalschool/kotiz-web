@@ -17,6 +17,7 @@ export default function ExplorerPage() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
+  
 
   // On récupère toutes les cagnottes au chargement de la page
   useEffect(() => {
@@ -109,7 +110,7 @@ export default function ExplorerPage() {
                 <FaUser className="text-green-200 opacity-60" /> Profil
               </button>
 
-              {/* Menu déroulant amélioré */}
+              {/* Menu déroulant amelioré */}
               <ul className="absolute left-0 mt-2 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 z-10">
                 <li>
                   <button

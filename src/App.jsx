@@ -23,6 +23,8 @@ import TestPaymentPage from "./pages/TestPaymentPage";
 import { useAuth } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Breadcrumb from "./components/Breadcrumb";
+import WithdrawPage from './pages/WithdrawPage';
+
 
 // Importer les utilitaires de debug en développement
 //if (process.env.NODE_ENV === 'development') {
@@ -160,6 +162,10 @@ export default function App() {
           <TestPaymentPage />
         </AuthGuard>
       } />
+
+      <Route path="/cagnottes/:id/withdraw" element={<WithdrawPage />} />
+
+
 
     </Routes>
    </>
