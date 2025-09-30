@@ -34,13 +34,15 @@ const ContributePage = () => {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [userPhone, setUserPhone] = useState(""); // Pour utilisateurs connectés
   const [guestNameError, setGuestNameError] = useState("");
   const [guestEmailError, setGuestEmailError] = useState("");
   const [guestPhoneError, setGuestPhoneError] = useState("");
+  const [userPhoneError, setUserPhoneError] = useState("");
 
 
-  const [paymentMethod, setPaymentMethod] = useState("card");
-  const [mobileOption, setMobileOption] = useState("tmoney");
+  const [paymentMethod, setPaymentMethod] = useState("mobile");
+  const [mobileOption, setMobileOption] = useState("moov_money");
 
 
   // Charger les données de la cagnotte
@@ -79,6 +81,7 @@ const ContributePage = () => {
     let isValid = true;
     setAmountError(""); setMessageError("");
     setGuestNameError(""); setGuestEmailError(""); setGuestPhoneError("");
+    setUserPhoneError("");
 
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
       setAmountError("Veuillez entrer un montant valide supérieur à 0.");
@@ -94,6 +97,9 @@ const ContributePage = () => {
       if (!guestName.trim()) { setGuestNameError("Votre nom est requis."); isValid = false; }
       if (!guestEmail.trim() || !guestEmail.includes("@")) { setGuestEmailError("Email valide requis."); isValid = false; }
       if (!guestPhone.trim()) { setGuestPhoneError("Numéro requis."); isValid = false; }
+    } else {
+      // Pour utilisateurs connectés, vérifier le numéro de téléphone
+      if (!userPhone.trim()) { setUserPhoneError("Numéro de téléphone requis pour le paiement."); isValid = false; }
     }
 
     return isValid;
@@ -124,7 +130,8 @@ const ContributePage = () => {
           amount: payload.amount,
           message: payload.message,
           paymentMethod: method,
-          anonymous: payload.anonymous
+          anonymous: payload.anonymous,
+          phoneNumber: payload.phoneNumber
         };
 
         console.log("Payload utilisateur connecté:", userPayload);
@@ -202,7 +209,7 @@ const ContributePage = () => {
       // Rediriger vers la page de reçu avec les données
       navigate('/receipt', { state: { receiptData } });
 
-      setAmount(""); setAnonymous(false); setMessage(""); setGuestName(""); setGuestEmail(""); setGuestPhone("");
+      setAmount(""); setAnonymous(false); setMessage(""); setGuestName(""); setGuestEmail(""); setGuestPhone(""); setUserPhone("");
     } catch (err) {
       setSubmitError("Une erreur est survenue lors de la contribution.");
     } finally {
@@ -225,18 +232,34 @@ const ContributePage = () => {
         message,
         anonymous,
         paymentMethod,
-        mobileOption,
-        guestName,
-        guestEmail,
-        guestPhone
+        mobileOption: paymentMethod === "mobile" ? mobileOption : undefined,
+        phoneNumber: isGuest ? guestPhone : userPhone,
+        guestName: isGuest ? guestName : undefined,
+        guestEmail: isGuest ? guestEmail : undefined,
+        guestPhone: isGuest ? guestPhone : undefined
       };
 
       const serverResp = await createContributionOnServer(serverPayload);
 
-      // Si le serveur renvoie une redirection, on redirige
-      if (serverResp?.redirectUrl) { window.location.href = serverResp.redirectUrl; return; }
-
-      await submitContribution(newContribution);
+      if (serverResp?.success) {
+        // Contribution créée avec succès sur le serveur
+        if (serverResp?.payment?.paymentUrl) {
+          // Redirection vers le paiement externe
+          window.location.href = serverResp.payment.paymentUrl;
+          return;
+        } else if (serverResp?.statusUrl) {
+          // Redirection vers la page de suivi du paiement
+          navigate(`/payment-status/${serverResp.contribution.id}`);
+          return;
+        } else {
+          // Paiement initié, rediriger vers le suivi
+          navigate(`/payment-status/${serverResp.contribution.id}`);
+          return;
+        }
+      } else {
+        // Échec du paiement, faire local
+        await submitContribution(newContribution);
+      }
 
     } catch (err) {
       // mme si le serveur echoue on met à jour localement
@@ -266,6 +289,15 @@ const ContributePage = () => {
           <input type="checkbox" checked={anonymous} onChange={() => setAnonymous(!anonymous)} id="anonymous" style={{ width: "1rem", height: "1rem" }} />
           <label htmlFor="anonymous" style={{ color: "#374151" }}>Contribuer anonymement</label>
         </div>
+
+        {/* Numéro de téléphone pour utilisateurs connectés */}
+        {!isGuest && (
+          <div className="mt-4">
+            <label className="block font-medium mb-1" style={{ color: "#374151" }}>Numéro de téléphone (pour le paiement)</label>
+            <PhoneInput value={userPhone} onChange={(e) => setUserPhone(e.target.value)} required />
+            {userPhoneError && <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.25rem" }}>{userPhoneError}</p>}
+          </div>
+        )}
 
         {/* Champs pour invité uniquement */}
         {isGuest && (
@@ -304,28 +336,36 @@ const ContributePage = () => {
           <label className="block font-medium mb-2" style={{ color: "#374151" }}>Moyen de paiement</label>
           <div className="flex gap-4 items-center">
             <label className="flex items-center gap-2">
-              <input type="radio" name="paymentMethod" value="card" checked={paymentMethod === "card"} onChange={() => setPaymentMethod("card")} />
-              <span>Carte bancaire (Stripe/Flutterwave)</span>
-            </label>
-            <label className="flex items-center gap-2">
               <input type="radio" name="paymentMethod" value="mobile" checked={paymentMethod === "mobile"} onChange={() => setPaymentMethod("mobile")} />
-              <span>Mobile Money (TMoney / Flooz / Orange)</span>
+              <span>Mobile Money (Orange Money / MTN / Moov / Wave / Flooz / T-Money)</span>
             </label>
           </div>
 
           {paymentMethod === "mobile" && (
-            <div className="mt-2 flex gap-4">
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <label className="flex items-center gap-2">
-                <input type="radio" name="mobileOption" value="tmoney" checked={mobileOption === "tmoney"} onChange={() => setMobileOption("tmoney")} />
-                <span>TMoney</span>
+                <input type="radio" name="mobileOption" value="orange_money" checked={mobileOption === "orange_money"} onChange={() => setMobileOption("orange_money")} />
+                <span>Orange Money</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" name="mobileOption" value="mtn_money" checked={mobileOption === "mtn_money"} onChange={() => setMobileOption("mtn_money")} />
+                <span>MTN Mobile Money</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" name="mobileOption" value="moov_money" checked={mobileOption === "moov_money"} onChange={() => setMobileOption("moov_money")} />
+                <span>Moov Money</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" name="mobileOption" value="wave" checked={mobileOption === "wave"} onChange={() => setMobileOption("wave")} />
+                <span>Wave</span>
               </label>
               <label className="flex items-center gap-2">
                 <input type="radio" name="mobileOption" value="flooz" checked={mobileOption === "flooz"} onChange={() => setMobileOption("flooz")} />
                 <span>Flooz</span>
               </label>
               <label className="flex items-center gap-2">
-                <input type="radio" name="mobileOption" value="orange" checked={mobileOption === "orange"} onChange={() => setMobileOption("orange")} />
-                <span>Orange</span>
+                <input type="radio" name="mobileOption" value="tmoney" checked={mobileOption === "tmoney"} onChange={() => setMobileOption("tmoney")} />
+                <span>T-Money</span>
               </label>
             </div>
           )}

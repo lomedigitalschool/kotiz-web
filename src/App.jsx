@@ -18,6 +18,8 @@ import NotificationsPage from "./pages/Notifications";
 import KycForm from "./pages/KycForm";
 import Transactions from "./pages/Transactions";
 import ReceiptPage from "./pages/ReceiptPage";
+import PaymentStatusPage from "./pages/PaymentStatusPage";
+import TestPaymentPage from "./pages/TestPaymentPage";
 import { useAuth } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Breadcrumb from "./components/Breadcrumb";
@@ -146,6 +148,16 @@ export default function App() {
       <Route path="/receipt" element={
         <AuthGuard requireAuth={true}>
           <ReceiptPage />
+        </AuthGuard>
+      } />
+      <Route path="/payment-status/:contributionId" element={
+        <AuthGuard requireAuth={true}>
+          <PaymentStatusPage />
+        </AuthGuard>
+      } />
+      <Route path="/test-payments" element={
+        <AuthGuard requireAuth={true}>
+          <TestPaymentPage />
         </AuthGuard>
       } />
 
