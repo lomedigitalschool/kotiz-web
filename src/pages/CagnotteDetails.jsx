@@ -445,7 +445,7 @@ const CagnotteDetails = () => {
                       Cagnotte fermée
                     </button>
                   )}
-                  {canWithdrawWithoutKyc && (
+                  {canWithdrawWithoutKyc && !kycLoading && (
                     <>
                       {!hasApprovedKyc ? (
                         <div className="px-5 py-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-md">
@@ -465,32 +465,7 @@ const CagnotteDetails = () => {
                         </div>
                       ) : (
                         <button
-                          onClick={async () => {
-                            const amount = prompt(`Montant à retirer (max: ${cagnotte.currentAmount || 0} ${cagnotte.currency}):`);
-                            if (!amount || isNaN(amount) || parseFloat(amount) <= 0) return;
-
-                            if (parseFloat(amount) > (cagnotte.currentAmount || 0)) {
-                              alert('Montant supérieur au solde disponible');
-                              return;
-                            }
-
-                            if (!confirm(`Confirmer le retrait de ${amount} ${cagnotte.currency} ?`)) return;
-
-                            try {
-                              const response = await api.post(`/pulls/${cagnotte.id}/withdraw`, {
-                                amount: parseFloat(amount),
-                                reason: 'Retrait par le propriétaire'
-                              });
-
-                              if (response.data.success) {
-                                alert(`Retrait de ${amount} ${cagnotte.currency} effectué avec succès!\nRéférence: ${response.data.withdrawal.transactionReference}`);
-                                setRefreshKey(prev => prev + 1);
-                              }
-                            } catch (error) {
-                              console.error('Erreur retrait:', error);
-                              alert('Erreur lors du retrait: ' + (error.response?.data?.error || error.message));
-                            }
-                          }}
+                          onClick={() => navigate(`/cagnottes/${cagnotte.id}/withdraw`)}
                           className="px-4 py-2 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
                           style={{ backgroundColor: '#10B981' }}
                         >

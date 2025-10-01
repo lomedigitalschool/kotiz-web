@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 
 const WithdrawPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const [cagnotte, setCagnotte] = useState(null);
     const [amount, setAmount] = useState("");
@@ -15,6 +17,8 @@ const WithdrawPage = () => {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
+    const [kycStatus, setKycStatus] = useState(null);
+    const [kycLoading, setKycLoading] = useState(true);
 
     // Charger les infos cagnotte (montant dispo)
     useEffect(() => {
@@ -28,6 +32,26 @@ const WithdrawPage = () => {
         };
         fetchCagnotte();
     }, [id]);
+
+    // récupérer le statut KYC de l'utilisateur
+    useEffect(() => {
+        const fetchKycStatus = async () => {
+            try {
+                setKycLoading(true);
+                const response = await api.get('/kyc/status');
+                setKycStatus(response.data.data);
+            } catch (error) {
+                console.error('Erreur récupération statut KYC:', error);
+                setKycStatus({ hasActiveKyc: false, status: null });
+            } finally {
+                setKycLoading(false);
+            }
+        };
+
+        if (user) {
+            fetchKycStatus();
+        }
+    }, [user]);
 
     const handleWithdraw = async (e) => {
         e.preventDefault();
@@ -65,6 +89,52 @@ const WithdrawPage = () => {
     };
 
     if (!cagnotte) return <p>Chargement...</p>;
+    if (kycLoading) return <p className="text-center mt-[80px] text-gray-500">Vérification KYC...</p>;
+
+    const isClosed = cagnotte.status === 'closed';
+    const hasApprovedKyc = kycStatus && kycStatus.statutVerification === 'APPROUVE';
+
+    // Vérifier si l'utilisateur peut retirer (cagnotte fermée + KYC approuvé)
+    if (!isClosed) {
+        return (
+            <div className="max-w-lg mx-auto p-6 bg-white shadow rounded-lg mt-10">
+                <h1 className="text-2xl font-bold mb-4">Retirer fonds de "{cagnotte.title}"</h1>
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-md">
+                    <p className="font-semibold">Cagnotte non fermée</p>
+                    <p>Vous ne pouvez retirer des fonds que lorsque la cagnotte est fermée.</p>
+                    <button
+                        onClick={() => navigate(`/cagnottes/${id}`)}
+                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                    >
+                        Retour à la cagnotte
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!hasApprovedKyc) {
+        return (
+            <div className="max-w-lg mx-auto p-6 bg-white shadow rounded-lg mt-10">
+                <h1 className="text-2xl font-bold mb-4">Retirer fonds de "{cagnotte.title}"</h1>
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-md">
+                    <div className="flex items-center gap-2">
+                        <span>⚠️</span>
+                        <div>
+                            <p className="font-semibold">Vérification d'identité requise</p>
+                            <p className="text-sm">Vous devez soumettre et faire valider vos documents KYC avant de pouvoir retirer des fonds.</p>
+                            <button
+                                onClick={() => navigate('/kyc')}
+                                className="mt-2 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+                            >
+                                Soumettre KYC
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-lg mx-auto p-6 bg-white shadow rounded-lg mt-10">

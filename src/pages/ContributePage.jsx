@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import PhoneInput from "../components/PhoneInput";
+import paymentService from "../services/paymentService";
 
 
 const ContributePage = () => {
@@ -105,40 +106,24 @@ const ContributePage = () => {
     return isValid;
   };
 
-  // création de la contribution sur le serveur
+  // création de la contribution sur le serveur avec paiement réel
   const createContributionOnServer = async (payload) => {
     try {
-      const method = paymentMethod === "mobile" ? "mobile_money" : "card";
+      const method = paymentMethod === "mobile" ? mobileOption : "card";
 
-      if (isGuest) {
-        const guestPayload = {
-          amount: payload.amount,
-          message: payload.message,
-          paymentMethod: method,
-          contributorName: payload.guestName,
-          contributorEmail: payload.guestEmail,
-          phoneNumber: payload.guestPhone,
-          mobileOption: payload.mobileOption,
-          anonymous: payload.anonymous,
-        };
+      const contributionData = {
+        pullId: id,
+        amount: payload.amount,
+        phoneNumber: payload.phoneNumber,
+        paymentMethod: method,
+        message: payload.message,
+        isAnonymous: payload.anonymous
+      };
 
-        console.log("Payload invité:", guestPayload);
-        return (await api.post(`/public/contributions/anonymous/${id}`, guestPayload)).data;
-      } else {
-        // Contribution utilisateur connecté - utiliser l'endpoint correct
-        const userPayload = {
-          amount: payload.amount,
-          message: payload.message,
-          paymentMethod: method,
-          anonymous: payload.anonymous,
-          phoneNumber: payload.phoneNumber
-        };
-
-        console.log("Payload utilisateur connecté:", userPayload);
-        return (await api.post(`/pulls/${id}/contribute`, userPayload)).data;
-      }
+      console.log("Initiation paiement avec PaymentService:", contributionData);
+      return await paymentService.initiateContribution(contributionData);
     } catch (err) {
-      console.error("Erreur contribution:", err.response?.data || err.message);
+      console.error("Erreur contribution:", err);
       throw err;
     }
   };
@@ -245,25 +230,26 @@ const ContributePage = () => {
         // Contribution créée avec succès sur le serveur
         if (serverResp?.payment?.paymentUrl) {
           // Redirection vers le paiement externe
+          console.log("🔗 Redirection vers paiement externe:", serverResp.payment.paymentUrl);
           window.location.href = serverResp.payment.paymentUrl;
           return;
-        } else if (serverResp?.statusUrl) {
-          // Redirection vers la page de suivi du paiement
-          navigate(`/payment-status/${serverResp.contribution.id}`);
-          return;
         } else {
-          // Paiement initié, rediriger vers le suivi
-          navigate(`/payment-status/${serverResp.contribution.id}`);
+          // Paiement initié, rediriger vers la page de suivi
+          console.log("📊 Redirection vers suivi paiement:", serverResp.contribution?.id);
+          navigate(`/payment-status/${serverResp.contribution?.id}`);
           return;
         }
       } else {
-        // Échec du paiement, faire local
-        await submitContribution(newContribution);
+        // Échec du paiement, afficher l'erreur
+        console.error("❌ Échec initiation paiement:", serverResp.error);
+        setSubmitError(serverResp.error || "Erreur lors de l'initiation du paiement");
+        return;
       }
 
     } catch (err) {
-      // mme si le serveur echoue on met à jour localement
-      await submitContribution(newContribution);
+      // Erreur inattendue
+      console.error("Erreur inattendue:", err);
+      setSubmitError("Une erreur inattendue s'est produite. Veuillez réessayer.");
     } finally { setSubmitting(false); }
   };
 
