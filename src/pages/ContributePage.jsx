@@ -229,9 +229,22 @@ const ContributePage = () => {
       if (serverResp?.success) {
         // Contribution créée avec succès sur le serveur
         if (serverResp?.payment?.paymentUrl) {
-          // Redirection vers le paiement externe
-          console.log("🔗 Redirection vers paiement externe:", serverResp.payment.paymentUrl);
-          window.location.href = serverResp.payment.paymentUrl;
+          // Ouvrir le paiement dans une nouvelle fenêtre pour permettre le retour
+          console.log("🔗 Ouverture paiement externe:", serverResp.payment.paymentUrl);
+          const paymentWindow = window.open(serverResp.payment.paymentUrl, '_blank', 'width=800,height=600');
+
+          if (paymentWindow) {
+            // Si la fenêtre s'ouvre, afficher un message d'instruction
+            alert("Une fenêtre de paiement s'est ouverte. Veuillez compléter le paiement dans cette fenêtre. Une fois terminé, vous pouvez fermer la fenêtre et revenir à cette page pour voir le statut de votre contribution.");
+            // Rediriger vers la page de statut après un court délai
+            setTimeout(() => {
+              navigate(`/payment-status/${serverResp.contribution?.id}`);
+            }, 2000);
+          } else {
+            // Fallback si popup bloqué
+            alert("Votre navigateur a bloqué la fenêtre de paiement. Vous allez être redirigé vers la page de paiement. Après avoir payé, revenez manuellement à l'application Kotiz.");
+            window.location.href = serverResp.payment.paymentUrl;
+          }
           return;
         } else {
           // Paiement initié, rediriger vers la page de suivi
