@@ -25,3 +25,5 @@ src/assets/illustrations/WhatsApp Image 2025-09-27 à 00.13.38_fd7905ae.jpg
 test-auto-close.js
 src/pages/PaymentSimulation.jsx
 src/pages/TestPaymentPage.jsx
+backup.sql
+export-db.js

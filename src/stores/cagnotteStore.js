@@ -192,14 +192,13 @@ export const useCagnotteStore = create((set, get) => ({
       const data = response.data;
       console.log('✅ Cagnottes utilisateur récupérées:', data.length, 'cagnottes');
       console.log('📊 Données reçues du backend:', data);
-      
+
       // Debug: afficher le statut de chaque cagnotte
       data.forEach(pull => {
         console.log(`  - ID: ${pull.id}, Titre: ${pull.title}, Statut: ${pull.status}, Type: ${pull.type}`);
       });
 
-      // Les contributions seront récupérées séparément par fetchUserContributions
-      // Pour l'instant, on ne calcule pas les montants ici
+      // Traiter les données de base
       const processedData = Array.isArray(data) ? data.map(c => ({
         ...c,
         currentAmount: parseFloat(c.currentAmount) || 0,
@@ -207,8 +206,12 @@ export const useCagnotteStore = create((set, get) => ({
         collectedAmount: parseFloat(c.currentAmount) || 0 // Pour la compatibilité
       })) : [];
 
-      set({ cagnottes: processedData, loading: false });
-      console.log('📊 Cagnottes de l\'utilisateur chargées avec montants calculés:', processedData.length);
+      // Recalculer avec les contributions si disponibles
+      const currentContributions = currentState.contributions || [];
+      const updatedCagnottes = recalculateCagnotteAmounts(processedData, currentContributions);
+
+      set({ cagnottes: updatedCagnottes, loading: false });
+      console.log('📊 Cagnottes de l\'utilisateur chargées avec montants et contributeurs calculés:', updatedCagnottes.length);
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des cagnottes utilisateur:', error);
       // Ne pas vider les cagnottes en cas d'erreur pour éviter la disparition des graphiques
@@ -347,8 +350,9 @@ export const useCagnotteStore = create((set, get) => ({
       try {
         // Essayer de récupérer depuis l'API
         const response = await api.get('/contributions/my');
-        const apiContributions = response.data;
-        console.log('✅ Contributions récupérées depuis l\'API:', apiContributions.length);
+        const apiData = response.data;
+        const apiContributions = apiData.contributions || apiData.data || apiData || [];
+        console.log('✅ Contributions récupérées depuis l\'API:', apiContributions.length, apiContributions);
 
         // Récupérer les cagnottes pour enrichir les contributions avec les titres
         const currentCagnottes = get().cagnottes;

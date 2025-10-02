@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FiSettings, FiBell, FiShield, FiHelpCircle, FiHome, FiGrid, FiLogOut, FiEdit, FiLock, FiPhone } from "react-icons/fi";
 import { useNavigate } from "react-router-dom"; // Importation du hook pour la navigation
 import api from "../services/api";
@@ -9,6 +9,7 @@ import { logout } from "../services/auth";
 const ProfilePage = () => {
   const navigate = useNavigate(); // Hook pour naviguer entre les pages
   const { cagnottes, contributions, reset } = useCagnotteStore();
+  const accountRef = useRef(null);
 
   // Gestion des états locaux pour les onglets actifs et les données utilisateur
   const [activeTab, setActiveTab] = useState("soutenues"); // Onglet actif (projets soutenus ou créés)
@@ -198,19 +199,14 @@ const ProfilePage = () => {
 
             <div className="space-y-2">
               {/* Liens de navigation */}
-              <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+              <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition" onClick={() => accountRef.current?.scrollIntoView({ behavior: 'smooth' })}>
                 <FiSettings className="text-gray-500" />
                 <span>Compte</span>
               </button>
 
-              <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+              <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition" onClick={() => navigate("/notifications")}>
                 <FiBell className="text-gray-500" />
                 <span>Notifications</span>
-              </button>
-
-              <button className="w-full flex items-center space-x-2 p-3 rounded-lg text-gray-700 hover:bg-gray-100 transition">
-                <FiShield className="text-gray-500" />
-                <span>Sécurité</span>
               </button>
 
 
@@ -241,7 +237,7 @@ const ProfilePage = () => {
         {/* Contenu principal */}
         <div className="lg:col-span-2">
           {/* Section des informations utilisateur */}
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div ref={accountRef} className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Informations du compte</h2>
 
             {/* Section pour modifier le nom */}

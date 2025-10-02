@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [userStats, setUserStats] = useState({ totalCollected: 0, activeCount: 0, totalContributors: 0 });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [cagnotteContributions, setCagnotteContributions] = useState({});
+  const [dashboardLoading, setDashboardLoading] = useState(true);
 
   const loadCagnotteContributions = async (cagnottesList) => {
     const contribs = {};
@@ -47,15 +48,17 @@ const Dashboard = () => {
         }
 
         useCagnotteStore.getState().cleanMockData();
-        // Fetch cagnottes d'abord (pour initialiser map), puis contributions
-        await fetchUserCagnottes();
+        // Fetch contributions d'abord, puis cagnottes (pour calculer correctement)
         await fetchUserContributions();
+        await fetchUserCagnottes();
         // Charger les contributions pour chaque cagnotte
         const currentCagnottes = useCagnotteStore.getState().cagnottes;
         await loadCagnotteContributions(currentCagnottes);
         console.log('✅ Dashboard: Données utilisateur chargées');
       } catch (error) {
         console.error('❌ Dashboard: Erreur lors du chargement:', error);
+      } finally {
+        setDashboardLoading(false);
       }
     };
 
@@ -65,14 +68,27 @@ const Dashboard = () => {
   useEffect(() => {
     const handleFocus = async () => {
       console.log('🔄 Dashboard: Rafraîchissement au focus');
-      await fetchUserCagnottes();
       await fetchUserContributions();
+      await fetchUserCagnottes();
       const currentCagnottes = useCagnotteStore.getState().cagnottes;
       await loadCagnotteContributions(currentCagnottes);
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchUserCagnottes, fetchUserContributions]);
+
+  // Rafraîchissement automatique toutes les 60 secondes
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      console.log('🔄 Dashboard: Rafraîchissement automatique');
+      await fetchUserContributions();
+      await fetchUserCagnottes();
+      const currentCagnottes = useCagnotteStore.getState().cagnottes;
+      await loadCagnotteContributions(currentCagnottes);
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, [fetchUserCagnottes, fetchUserContributions]);
 
   useEffect(() => {
@@ -135,35 +151,35 @@ const Dashboard = () => {
     return barData.filter(d => (d.currentAmount || 0) > 0);
   }, [barData]);
 
-  // --- Calcul des statistiques (totalCollected à partir des contributions agrégées) ---
+  // --- Calcul des statistiques ---
   useEffect(() => {
-    // totalCollected = somme des totaux par cagnotte de l'utilisateur
+    // totalCollected = somme des montants actuels des cagnottes
     let totalCollected = 0;
-    for (const [, agg] of contributionsAggregated) {
-      totalCollected += agg.total || 0;
-    }
+    cagnottes.forEach(c => {
+      totalCollected += parseFloat(c.currentAmount) || 0;
+    });
 
     // activeCount à partir des cagnottes
     const activeCount = (cagnottes || []).filter(c =>
       c.status === 'active' || c.status === 'pending' || !c.status
     ).length;
 
-    // totalContributors : union de tous les contributeurs des cagnottes de l'utilisateur
-    const allContributorIds = new Set();
-    for (const [, agg] of contributionsAggregated) {
-      agg.contributors.forEach(id => allContributorIds.add(id));
-    }
+    // totalContributors : somme des contributorsCount des cagnottes
+    let totalContributors = 0;
+    cagnottes.forEach(c => {
+      totalContributors += c.contributorsCount || 0;
+    });
 
     const stats = {
       totalCollected,
       activeCount,
-      totalContributors: allContributorIds.size
+      totalContributors
     };
     console.log('📊 Dashboard calculated stats:', stats);
     setUserStats(stats);
-  }, [contributionsAggregated, cagnottes]);
+  }, [cagnottes]);
 
-  if (loading) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>Chargement...</p>;
+  if (dashboardLoading || loading) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>Chargement...</p>;
   if (error) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#dc2626" }}>{error}</p>;
 
   const COLORS = ["#3B5BAB", "#4CA260", "#997A8D", "#806D5A", "#149414", "#4E3D28", "#BBD2E1", "#3A020D", "#C1BFB1", "#22780F", "#997A8D", "#40826D", "#BBACAC", "#5A5E6B", "#83A697"];

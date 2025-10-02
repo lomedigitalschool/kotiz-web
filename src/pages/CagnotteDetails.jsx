@@ -300,7 +300,7 @@ const CagnotteDetails = () => {
   const currentList = allContribs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const nbContribs = allContribs.length;
-  const avgDonation = allContribs.reduce((acc, c) => acc + c.amount, 0) / (nbContribs || 1);
+  const avgDonation = nbContribs > 0 ? allContribs.reduce((acc, c) => acc + c.amount, 0) / nbContribs : 0;
   const remain = Math.max(cagnotte.goalAmount - (cagnotte.currentAmount || 0), 0);
 
   const creationDate = new Date(cagnotte.createdAt);
