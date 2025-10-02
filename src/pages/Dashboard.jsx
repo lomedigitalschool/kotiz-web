@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import EmailVerificationBanner from "../components/EmailVerificationBanner";
 import api from "../services/api";
 import logoHorizontale from "../assets/logos/logo_horizontale.png";
+import { useSilentRefresh } from "../hooks/useSilentRefresh";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -17,6 +18,9 @@ const Dashboard = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [cagnotteContributions, setCagnotteContributions] = useState({});
   const [dashboardLoading, setDashboardLoading] = useState(true);
+
+  // Utiliser le hook de rafraîchissement silencieux
+  const { forceRefresh } = useSilentRefresh(true, 60000); // Rafraîchissement toutes les 60 secondes
 
   const loadCagnotteContributions = async (cagnottesList) => {
     const contribs = {};
@@ -78,30 +82,6 @@ const Dashboard = () => {
     return () => window.removeEventListener('focus', handleFocus);
   }, [fetchUserCagnottes, fetchUserContributions]);
 
-  // Rafraîchissement automatique toutes les 60 secondes
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      console.log('🔄 Dashboard: Rafraîchissement automatique');
-      await fetchUserContributions();
-      await fetchUserCagnottes();
-      const currentCagnottes = useCagnotteStore.getState().cagnottes;
-      await loadCagnotteContributions(currentCagnottes);
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [fetchUserCagnottes, fetchUserContributions]);
-
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      console.log('🔄 Dashboard: Rafraîchissement automatique');
-      await fetchUserCagnottes();
-      await fetchUserContributions();
-      const currentCagnottes = useCagnotteStore.getState().cagnottes;
-      await loadCagnotteContributions(currentCagnottes);
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [fetchUserCagnottes, fetchUserContributions]);
 
   // --- Préparer les jeux de données pour les graphiques (useMemo pour stabilité) ---
   const cagnottesById = useMemo(() => {
