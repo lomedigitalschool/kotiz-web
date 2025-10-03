@@ -22,6 +22,7 @@ import PaymentStatusPage from "./pages/PaymentStatusPage";
 import { useAuth } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Breadcrumb from "./components/Breadcrumb";
+import NotificationProvider from "./components/NotificationProvider";
 import WithdrawPage from './pages/WithdrawPage';
 
 
@@ -71,7 +72,7 @@ export default function App() {
   console.log('🔄 État d\'authentification déterminé:', isAuthenticated ? 'Connecté' : 'Non connecté');
 
   return (
-    <>
+    <NotificationProvider>
       <Breadcrumb />
       <Routes>
       <Route path="/" element={<Navigate to="/landing" />} />
@@ -162,6 +163,6 @@ export default function App() {
 
 
     </Routes>
-   </>
+    </NotificationProvider>
   );
 }

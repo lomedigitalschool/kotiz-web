@@ -3,9 +3,11 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import logoHorizontale from "../assets/logos/logo_horizontale.png";
+import { useNotification } from "../hooks/useNotification";
 
 export default function KycFormForm() {
     const navigate = useNavigate();
+    const { notify } = useNotification();
 
     // On stocke toutes les informations du formulaire ici
     const [formData, setFormData] = useState({
@@ -42,7 +44,7 @@ export default function KycFormForm() {
         e.preventDefault();
 
         if (!confirmInfo) {
-            alert("Vous devez confirmer que les informations sont exactes.");
+            notify("Vous devez confirmer que les informations sont exactes.", "warning");
             return;
         }
 
@@ -59,16 +61,17 @@ export default function KycFormForm() {
             // Appel réel à l'API
             const response = await api.post("/kyc/submit", data, {
                 headers: {
-                    "Content-Type": "multipart/form-data",
-                      Authorization: `Bearer ${token}`
+                    "Content-Type": "multipart/form-data"
                 },
             });
 
-            // Message positif
-            setMessage("Votre demande KYC a été soumise avec succès !");
+            // Message positif via notification
+            notify("Votre demande KYC a été soumise avec succès !", "success");
+            setMessage(""); // Vider le message d'erreur
         } catch (error) {
             console.error("Erreur KYC:", error);
-            setMessage("Une erreur est survenue lors de la soumission. Veuillez réessayer.");
+            notify("Une erreur est survenue lors de la soumission. Veuillez réessayer.", "error");
+            setMessage(""); // Vider le message de succès
         } finally {
             setLoading(false);
         }
