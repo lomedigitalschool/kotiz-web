@@ -62,6 +62,59 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  registerWithEmailAndPhone: async (email, password, displayName, phoneNumber) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      console.log('🎯 Tentative d\'inscription unifiée email + téléphone');
+
+      // Utiliser l'API backend pour l'inscription unifiée
+      // Utiliser une URL relative basée sur l'environnement
+      const baseUrl = process.env.NODE_ENV === 'production'
+        ? '' // URL relative en production
+        : 'http://localhost:5000'; // URL de développement
+
+      const response = await fetch(`${baseUrl}/api/v1/auth/register-unified`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          displayName,
+          phoneNumber
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erreur lors de l\'inscription unifiée');
+      }
+
+      const result = await response.json();
+
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('isNewUser', 'true');
+
+      set({
+        user: result.user,
+        isAuthenticated: true,
+        isLoading: false,
+        otpStep: null,
+        confirmationResult: null
+      });
+
+      console.log('✅ Inscription unifiée réussie');
+      return { success: true, user: result.user };
+
+    } catch (error) {
+      console.error('❌ Erreur inscription unifiée:', error);
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+
   registerWithPhone: async (phoneNumber) => {
     set({ isLoading: true, error: null });
 

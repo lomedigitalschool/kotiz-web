@@ -66,6 +66,10 @@ export const Register = () => {
         newErrors.email = "Au moins un email ou numéro de téléphone est requis.";
         newErrors.phone = "Au moins un email ou numéro de téléphone est requis.";
       }
+      // Validation supplémentaire : si email fourni, mot de passe requis
+      if (form.email.trim() && !form.password) {
+        newErrors.password = "Un mot de passe est requis pour l'inscription par email.";
+      }
     } else if (step === 2) {
       if (!form.password) newErrors.password = "Le mot de passe est obligatoire.";
       if (!form.confirmPassword) newErrors.confirmPassword = "La confirmation du mot de passe est obligatoire.";
@@ -195,33 +199,53 @@ export const Register = () => {
 
     try {
       const displayName = `${form.prenom.trim()} ${form.nom.trim()}`;
-      let result;
 
-      // Vérifier le type d'inscription et appeler la bonne méthode
-      if (form.email && form.email.trim()) {
-        // Inscription avec email et mot de passe
-        if (!form.password) {
-          alert("Le mot de passe est requis pour l'inscription par email");
-          return;
-        }
+      // Détecter l'inscription unifiée (email + téléphone + mot de passe)
+      const hasEmail = form.email && form.email.trim();
+      const hasPhone = form.phone && form.phone.trim();
+      const hasPassword = form.password && form.password.trim();
+
+      if (hasEmail && hasPhone && hasPassword) {
+        // 🎯 INSCRIPTION UNIFIÉE : Email + Téléphone + Mot de passe
+        console.log('🎯 Inscription unifiée: email + téléphone + mot de passe');
 
         if (form.password !== form.confirmPassword) {
           alert("Les mots de passe ne correspondent pas");
           return;
         }
 
+        // Utiliser une nouvelle méthode d'inscription unifiée
+        const result = await registerWithEmailAndPhone(form.email, form.password, displayName, form.phone);
+
+        // Obtenir le token Firebase
+        const idToken = await result.user.getIdToken();
+        localStorage.setItem('token', idToken);
+        localStorage.setItem('isNewUser', 'true');
+
+        // Nettoyer et recharger
+        useCagnotteStore.getState().reset();
+        await fetchAllCagnottes();
+
+        alert("🎉 Inscription réussie ! Vous pouvez maintenant vous connecter avec votre email ou téléphone.");
+        navigate('/dashboard');
+
+      } else if (hasEmail && hasPassword) {
+        // Inscription classique avec email
         console.log('📧 Inscription avec email:', form.email);
-        result = await registerWithEmail(form.email, form.password, displayName, form.phone);
 
-        // Traitement après inscription réussie (pour email uniquement)
+        if (form.password !== form.confirmPassword) {
+          alert("Les mots de passe ne correspondent pas");
+          return;
+        }
+
+        const result = await registerWithEmail(form.email, form.password, displayName, form.phone);
+
         const { user } = result;
-
-        // Obtenir le token Firebase mis à jour
         const idToken = await user.getIdToken();
         localStorage.setItem('token', idToken);
         localStorage.setItem('isNewUser', 'true');
 
-        // Sauvegarder le numéro de téléphone en base de données si fourni
+        // Sauvegarder le numéro de téléphone si fourni
         if (form.phone && form.phone.trim()) {
           try {
             await updateUserPhone(form.phone.trim());
@@ -231,14 +255,13 @@ export const Register = () => {
           }
         }
 
-        // Nettoyer complètement le store avant de charger les nouvelles données
         useCagnotteStore.getState().reset();
         await fetchAllCagnottes();
 
         alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
         navigate('/dashboard');
 
-      } else if (form.phone && form.phone.trim()) {
+      } else if (hasPhone) {
         // Inscription avec téléphone OTP
         console.log('📱 Inscription avec téléphone:', form.phone);
         

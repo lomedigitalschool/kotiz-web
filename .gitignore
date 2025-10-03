@@ -27,3 +27,4 @@ src/pages/PaymentSimulation.jsx
 src/pages/TestPaymentPage.jsx
 backup.sql
 export-db.js
+ACCOUNT_MERGING_STRATEGY.md

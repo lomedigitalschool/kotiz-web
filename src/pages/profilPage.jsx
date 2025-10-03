@@ -363,7 +363,7 @@ const ProfilePage = () => {
             </div>
 
             {/* Notifications */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-6">
               <div>
                 <label className="text-sm font-medium text-gray-600">Notifications</label>
                 <p className="text-gray-800">{userData.notifications ? "Activé" : "Désactivé"}</p>
@@ -375,6 +375,7 @@ const ProfilePage = () => {
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${userData.notifications ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
+
           </div>
 
           {/* Section des projets */}

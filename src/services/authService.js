@@ -6,7 +6,8 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   updateProfile,
-  onAuthStateChanged
+  onAuthStateChanged,
+  fetchSignInMethodsForEmail
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { updateUserPhone } from './api';
@@ -83,11 +84,15 @@ class AuthService {
     try {
       await this.initRecaptcha();
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
-      
+
+      // Vérifier si un compte existe déjà avec ce numéro
+      // Note: Firebase ne fournit pas directement une méthode pour vérifier les numéros de téléphone
+      // comme pour les emails, donc on laisse Firebase gérer cela lors de signInWithPhoneNumber
+
       // En développement avec numéro de test, simuler complètement
       if (window.location.hostname === 'localhost' && formattedPhone === '+22899974644') {
         console.log('📱 Simulation complète pour numéro de test');
-        
+
         return {
           confirm: async (code) => {
             if (code === '974644') {
@@ -101,14 +106,16 @@ class AuthService {
           }
         };
       }
-      
+
       // Pour les vrais numéros, utiliser Firebase normal
+      // signInWithPhoneNumber gère automatiquement la création/liason de comptes
       const confirmationResult = await signInWithPhoneNumber(
         auth,
         formattedPhone,
         window.recaptchaVerifier
       );
 
+      console.log(`📱 SMS envoyé à ${formattedPhone} pour inscription`);
       return confirmationResult;
     } catch (error) {
       this.cleanupRecaptcha();
@@ -174,30 +181,95 @@ class AuthService {
       throw new Error("Erreur finalisation connexion");
     }
   }
+/**
+ * Vérifie si un compte existe déjà avec cet email ou téléphone
+ * @param {string} email - Email à vérifier
+ * @param {string} phone - Téléphone à vérifier
+ * @returns {Object} Informations sur les comptes existants
+ */
+async checkExistingAccounts(email, phone) {
+  try {
+    const existingAccounts = {
+      email: null,
+      phone: null,
+      hasConflicts: false
+    };
 
-  async registerWithEmail(email, password, displayName, phoneNumber = null) {
-    try {
-      if (!email?.trim()) throw new Error('Email requis');
-      if (!password || password.length < 6) throw new Error('Mot de passe requis (min 6 caractères)');
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      const user = userCredential.user;
-
-      if (displayName) {
-        await updateProfile(user, { displayName });
-      }
-
+    // Vérifier l'email
+    if (email) {
       try {
-        await sendEmailVerification(user);
-      } catch (verificationError) {
-        console.warn('⚠️ Erreur email vérification:', verificationError.message);
+        const emailMethods = await fetchSignInMethodsForEmail(auth, email);
+        if (emailMethods.length > 0) {
+          existingAccounts.email = {
+            methods: emailMethods,
+            exists: true
+          };
+          existingAccounts.hasConflicts = true;
+        }
+      } catch (error) {
+        // Email n'existe pas, c'est normal
       }
-
-      return { user, phoneNumber };
-    } catch (error) {
-      throw this.formatFirebaseError(error);
     }
+
+    // Vérifier le téléphone (plus complexe côté client)
+    // On peut utiliser une approche différente pour le téléphone
+
+    return existingAccounts;
+  } catch (error) {
+    console.warn('Erreur vérification comptes existants:', error);
+    return { email: null, phone: null, hasConflicts: false };
   }
+}
+
+async registerWithEmail(email, password, displayName, phoneNumber = null) {
+  try {
+    if (!email?.trim()) throw new Error('Email requis');
+    if (!password || password.length < 6) throw new Error('Mot de passe requis (min 6 caractères)');
+
+    // Vérifier si un compte existe déjà
+    const existingAccounts = await this.checkExistingAccounts(email, phoneNumber);
+
+    if (existingAccounts.hasConflicts) {
+      throw new Error(
+        `Un compte existe déjà avec cet email. Essayez de vous connecter ou contactez le support.`
+      );
+    }
+
+    // Utiliser signInWithCredential au lieu de createUserWithEmailAndPassword
+    // pour une meilleure gestion des liens
+    const credential = EmailAuthProvider.credential(email.trim(), password);
+
+    try {
+      // Essayer d'abord de se connecter (au cas où le compte existe)
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      console.log('🔄 Compte existant détecté, connexion réussie');
+      return { user: userCredential.user, phoneNumber, wasExisting: true };
+    } catch (signInError) {
+      // Si la connexion échoue, c'est probablement un nouveau compte
+      if (signInError.code === 'auth/user-not-found') {
+        // Créer le nouveau compte
+        const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const user = userCredential.user;
+
+        if (displayName) {
+          await updateProfile(user, { displayName });
+        }
+
+        try {
+          await sendEmailVerification(user);
+        } catch (verificationError) {
+          console.warn('⚠️ Erreur email vérification:', verificationError.message);
+        }
+
+        return { user, phoneNumber, wasExisting: false };
+      } else {
+        throw signInError;
+      }
+    }
+  } catch (error) {
+    throw this.formatFirebaseError(error);
+  }
+}
 
   async verifySMSCode(confirmationResult, code) {
     try {
@@ -315,12 +387,35 @@ class AuthService {
       const user = this.getCurrentUser();
       if (!user) throw new Error('Aucun utilisateur connecté');
       if (user.emailVerified) throw new Error('Email déjà vérifié');
-      
+
       await sendEmailVerification(user);
       return { success: true, message: 'Email de vérification envoyé' };
     } catch (error) {
       throw new Error(error.message);
     }
+  }
+
+
+  /**
+   * Vérifie si l'utilisateur actuel a plusieurs providers liés
+   * @returns {Object} Informations sur les providers
+   */
+  getLinkedProviders() {
+    const user = this.getCurrentUser();
+    if (!user) return null;
+
+    return {
+      uid: user.uid,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      providers: user.providerData.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+        phoneNumber: provider.phoneNumber,
+        displayName: provider.displayName
+      })),
+      isEmailVerified: user.emailVerified
+    };
   }
 }
 
