@@ -4,42 +4,95 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
 import { FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt, FaWallet } from "react-icons/fa";
+import { FiShield } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
 import EmailVerificationBanner from "../components/EmailVerificationBanner";
 import api from "../services/api";
 import logoHorizontale from "../assets/logos/logo_horizontale.png";
 import { useSilentRefresh } from "../hooks/useSilentRefresh";
+import { useNotification } from "../contexts/NotificationContext";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { notify } = useNotification();
   const { cagnottes, fetchUserCagnottes, contributions, fetchUserContributions, loading, error, deleteCagnotte, fetchCagnotteContributions } = useCagnotteStore();
   const [userStats, setUserStats] = useState({ totalCollected: 0, activeCount: 0, totalContributors: 0 });
+  const [kycStatus, setKycStatus] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [cagnotteContributions, setCagnotteContributions] = useState({});
   const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false); // Nouveau flag pour s'assurer que les vraies données sont chargées
+
+  // Mesure de performance
+  useEffect(() => {
+    console.time('Dashboard-Loading-Time');
+    console.log('🚀 Dashboard: Début du chargement');
+
+    return () => {
+      console.timeEnd('Dashboard-Loading-Time');
+      console.log('✅ Dashboard: Chargement terminé');
+    };
+  }, []);
+
+  // Mesure du temps jusqu'aux vraies données
+  useEffect(() => {
+    if (dataLoaded) {
+      console.timeEnd('Dashboard-Data-Load-Time');
+      console.log('📊 Dashboard: Données utilisateur chargées');
+    }
+  }, [dataLoaded]);
 
   // Utiliser le hook de rafraîchissement silencieux
   const { forceRefresh } = useSilentRefresh(true, 60000); // Rafraîchissement toutes les 60 secondes
 
   const loadCagnotteContributions = async (cagnottesList) => {
-    const contribs = {};
-    for (const c of cagnottesList) {
-      try {
-        const data = await fetchCagnotteContributions(c.id);
-        contribs[c.id] = data;
-      } catch (error) {
-        console.error('Erreur chargement contributions cagnotte', c.id, error);
-        contribs[c.id] = [];
-      }
+    if (!cagnottesList || cagnottesList.length === 0) return;
+
+    // Éviter les appels multiples pour les mêmes données
+    const currentKeys = Object.keys(cagnotteContributions);
+    const neededIds = cagnottesList.map(c => c.id.toString());
+    const alreadyLoaded = neededIds.filter(id => currentKeys.includes(id));
+
+    if (alreadyLoaded.length === neededIds.length) {
+      console.log('✅ Toutes les contributions de cagnottes déjà chargées');
+      return;
     }
-    setCagnotteContributions(contribs);
+
+    console.log(`🔄 Chargement des contributions pour ${cagnottesList.length} cagnottes en parallèle`);
+
+    try {
+      // Charger en parallèle avec Promise.all pour de meilleures performances
+      const promises = cagnottesList.map(async (c) => {
+        try {
+          const data = await fetchCagnotteContributions(c.id);
+          return { id: c.id, data };
+        } catch (error) {
+          console.error('Erreur chargement contributions cagnotte', c.id, error);
+          return { id: c.id, data: [] };
+        }
+      });
+
+      const results = await Promise.all(promises);
+      const contribs = { ...cagnotteContributions };
+
+      results.forEach(({ id, data }) => {
+        contribs[id] = data;
+      });
+
+      setCagnotteContributions(contribs);
+      console.log('✅ Contributions de cagnottes chargées en parallèle');
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement parallèle des contributions:', error);
+    }
   };
 
   useEffect(() => {
     const loadUserData = async () => {
+      console.time('Dashboard-Data-Load-Time');
+      console.log('🔄 Dashboard: Chargement des données utilisateur');
+
       try {
-        console.log('🔄 Dashboard: Chargement des données utilisateur');
         const { auth } = await import('../config/firebase');
         if (auth.currentUser) {
           console.log('👤 Utilisateur Firebase connecté:', {
@@ -55,12 +108,31 @@ const Dashboard = () => {
         // Fetch contributions d'abord, puis cagnottes (pour calculer correctement)
         await fetchUserContributions();
         await fetchUserCagnottes();
-        // Charger les contributions pour chaque cagnotte
+
+        // Récupérer le statut KYC
+        try {
+          const kycResponse = await api.get('/kyc/status');
+          setKycStatus(kycResponse.data.data);
+        } catch (kycError) {
+          console.error('Erreur lors de la récupération du statut KYC:', kycError);
+          // Ne pas afficher d'erreur pour le KYC, juste laisser null
+        }
+
+        console.log('✅ Dashboard: Données principales chargées');
+
+        // Marquer que les vraies données sont chargées
+        setDataLoaded(true);
+
+        // Charger les contributions pour chaque cagnotte de manière asynchrone (non-bloquante)
         const currentCagnottes = useCagnotteStore.getState().cagnottes;
-        await loadCagnotteContributions(currentCagnottes);
-        console.log('✅ Dashboard: Données utilisateur chargées');
+        // Délai léger pour permettre au dashboard de s'afficher d'abord
+        setTimeout(() => {
+          loadCagnotteContributions(currentCagnottes);
+        }, 100);
+
       } catch (error) {
         console.error('❌ Dashboard: Erreur lors du chargement:', error);
+        setDataLoaded(true); // Même en cas d'erreur, permettre l'affichage
       } finally {
         setDashboardLoading(false);
       }
@@ -91,6 +163,9 @@ const Dashboard = () => {
     });
     return map;
   }, [cagnottes]);
+
+  // Memoize les statistiques pour éviter les recalculs inutiles
+  const memoizedUserStats = useMemo(() => userStats, [userStats.totalCollected, userStats.activeCount, userStats.totalContributors]);
 
   // Agrégation des contributions par cagnotteId (à partir des contributions)
   const contributionsAggregated = useMemo(() => {
@@ -159,13 +234,22 @@ const Dashboard = () => {
     setUserStats(stats);
   }, [cagnottes]);
 
-  if (dashboardLoading || loading) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>Chargement...</p>;
+  // Attendre que les vraies données soient chargées avant d'afficher quoi que ce soit
+  if (dashboardLoading || loading || !dataLoaded) {
+    return (
+      <div style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p>Chargement de vos données...</p>
+      </div>
+    );
+  }
   if (error) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#dc2626" }}>{error}</p>;
 
   const COLORS = ["#3B5BAB", "#4CA260", "#997A8D", "#806D5A", "#149414", "#4E3D28", "#BBD2E1", "#3A020D", "#C1BFB1", "#22780F", "#997A8D", "#40826D", "#BBACAC", "#5A5E6B", "#83A697"];
 
-  return (
-    <div className="pt-[calc(4rem+1rem)] p-6 mx-auto font-roboto" style={{ maxWidth: "1400px" }}>
+  try {
+    return (
+      <div className="pt-[calc(4rem+1rem)] p-6 mx-auto font-roboto" style={{ maxWidth: "1400px" }}>
       {/* Header */}
       <header className="fixed top-0 left-0 w-full flex justify-between items-center px-6 md:px-12 py-4 bg-white shadow-md z-50">
         {/* Logo */}
@@ -261,19 +345,67 @@ const Dashboard = () => {
       {/* Bannière de vérification email */}
       <EmailVerificationBanner />
 
+      {/* Statut KYC */}
+      <div className="bg-white rounded-xl shadow p-4 mb-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <FiShield className="text-gray-600 text-xl" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Vérification d'identité</h3>
+              {kycStatus?.hasActiveKyc ? (
+                <div className="flex items-center space-x-2 mt-1">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                    kycStatus.statutVerification === 'APPROUVE'
+                      ? 'bg-green-100 text-green-800'
+                      : kycStatus.statutVerification === 'REFUSE'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    <FiShield className="mr-1" />
+                    {kycStatus.statutVerification === 'APPROUVE'
+                      ? 'Vérifié'
+                      : kycStatus.statutVerification === 'REFUSE'
+                      ? 'Refusé'
+                      : 'En attente de vérification'}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    Soumis le {new Date(kycStatus.submissionDate).toLocaleDateString()}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-gray-600 text-sm mt-1">Non vérifié</p>
+              )}
+            </div>
+          </div>
+          {!kycStatus?.hasActiveKyc && (
+            <button
+              onClick={() => navigate("/kyc")}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+            >
+              Vérifier mon identité
+            </button>
+          )}
+        </div>
+        {kycStatus?.commentaireAdmin && (
+          <p className="text-sm text-gray-600 mt-2">
+            <strong>Commentaire admin:</strong> {kycStatus.commentaireAdmin}
+          </p>
+        )}
+      </div>
+
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Montants collectés</p>
-          <p className="text-2xl font-bold text-green-600">{(userStats.totalCollected || 0).toLocaleString()} FCFA</p>
+          <p className="text-2xl font-bold text-green-600">{(memoizedUserStats.totalCollected || 0).toLocaleString()} FCFA</p>
         </div>
         <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Cagnottes actives</p>
-          <p className="text-2xl font-bold text-blue-600">{userStats.activeCount || 0}</p>
+          <p className="text-2xl font-bold text-blue-600">{memoizedUserStats.activeCount || 0}</p>
         </div>
         <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Nombre de contributeurs</p>
-          <p className="text-2xl font-bold text-purple-600">{userStats.totalContributors || 0}</p>
+          <p className="text-2xl font-bold text-purple-600">{memoizedUserStats.totalContributors || 0}</p>
         </div>
       </div>
 
@@ -385,11 +517,11 @@ const Dashboard = () => {
                         await api.delete(`/pulls/${c.id}`);
                         // Supprimer du store local
                         deleteCagnotte(c.id);
-                        alert(`Cagnotte "${c.title}" supprimée avec succès`);
+                        notify(`Cagnotte "${c.title}" supprimée avec succès`, 'success');
                         // Pas besoin de redirection car on est déjà sur le dashboard
                       } catch (error) {
                         console.error('Erreur lors de la suppression:', error);
-                        alert('Erreur lors de la suppression. Vérifiez que vous êtes le propriétaire.');
+                        notify('Erreur lors de la suppression. Vérifiez que vous êtes le propriétaire.', 'error');
                       }
                     }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: "#EF4444" }} >
                       Supprimer
@@ -474,7 +606,25 @@ const Dashboard = () => {
         </div>
       )}
     </div>
-  );
+    );
+  } catch (renderError) {
+    console.error('Erreur de rendu Dashboard:', renderError);
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Erreur d'affichage</h2>
+          <p className="text-gray-600 mb-4">Le dashboard ne peut pas s'afficher correctement.</p>
+          <p className="text-sm text-gray-500 mb-4">Erreur: {renderError.message}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Recharger la page
+          </button>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default Dashboard;

@@ -25,8 +25,8 @@ export default function NotificationsPage() {
 
 
   const filteredNotifications = notifications?.filter(notif => {
-    if (filter === 'unread') return !notif.read;
-    if (filter === 'read') return notif.read;
+    if (filter === 'unread') return !notif.isRead;
+    if (filter === 'read') return notif.isRead;
     return true;
   }) || [];
 
@@ -39,7 +39,7 @@ export default function NotificationsPage() {
   };
 
   const markAllAsRead = async () => {
-    const unreadNotifications = notifications?.filter(notif => !notif.read) || [];
+    const unreadNotifications = notifications?.filter(notif => !notif.isRead) || [];
     for (const notif of unreadNotifications) {
       try {
         await markAsRead(notif.id);
@@ -84,7 +84,7 @@ export default function NotificationsPage() {
           <h1 className="text-3xl font-bold text-gray-800">Mes notifications</h1>
         </div>
 
-        {notifications && notifications.some(notif => !notif.read) && (
+        {notifications && notifications.some(notif => !notif.isRead) && (
           <button
             onClick={markAllAsRead}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white hover:opacity-90 transition"
@@ -116,7 +116,7 @@ export default function NotificationsPage() {
             }`}
             style={filter === 'unread' ? { backgroundColor: colors.primary } : {}}
           >
-            Non lues ({notifications?.filter(n => !n.read).length || 0})
+            Non lues ({notifications?.filter(n => !n.isRead).length || 0})
           </button>
           <button
             onClick={() => setFilter('read')}
@@ -125,7 +125,7 @@ export default function NotificationsPage() {
             }`}
             style={filter === 'read' ? { backgroundColor: colors.primary } : {}}
           >
-            Lues ({notifications?.filter(n => n.read).length || 0})
+            Lues ({notifications?.filter(n => n.isRead).length || 0})
           </button>
         </div>
       </div>
@@ -146,13 +146,13 @@ export default function NotificationsPage() {
             <div
               key={notif.id}
               className={`bg-white rounded-xl shadow p-6 transition-all duration-200 hover:shadow-lg ${
-                !notif.read ? 'border-l-4' : ''
+                !notif.isRead ? 'border-l-4' : ''
               }`}
-              style={!notif.read ? { borderLeftColor: colors.primary } : {}}
+              style={!notif.isRead ? { borderLeftColor: colors.primary } : {}}
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <p className={`text-gray-800 mb-2 ${!notif.read ? 'font-semibold' : ''}`}>
+                  <p className={`text-gray-800 mb-2 ${!notif.isRead ? 'font-semibold' : ''}`}>
                     {notif.message}
                   </p>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -164,7 +164,7 @@ export default function NotificationsPage() {
                     )}
                   </div>
                 </div>
-                {!notif.read && (
+                {!notif.isRead && (
                   <button
                     onClick={() => handleMarkAsRead(notif.id)}
                     className="ml-4 px-3 py-1 rounded-lg text-white hover:opacity-90 transition text-sm flex items-center gap-1"
@@ -174,7 +174,7 @@ export default function NotificationsPage() {
                     Marquer lu
                   </button>
                 )}
-                {notif.read && (
+                {notif.isRead && (
                   <div className="ml-4 flex items-center gap-1 text-green-600">
                     <FaCheck className="text-sm" />
                     <span className="text-sm font-medium">Lu</span>

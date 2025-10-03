@@ -14,8 +14,17 @@ const ProfilePage = () => {
   // Gestion des états locaux pour les onglets actifs et les données utilisateur
   const [activeTab, setActiveTab] = useState("soutenues"); // Onglet actif (projets soutenus ou créés)
   const [userData, setUserData] = useState(null);
+  const [kycStatus, setKycStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Mesure de performance
+  useEffect(() => {
+    console.time('ProfilePage-Loading-Time');
+    return () => {
+      console.timeEnd('ProfilePage-Loading-Time');
+    };
+  }, []);
 
   const [isEditing, setIsEditing] = useState(false); // État d'édition
   const [editField, setEditField] = useState(""); // Champ en cours d'édition
@@ -47,6 +56,15 @@ const ProfilePage = () => {
           memberSince: user.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear(),
           location: "Non spécifiée" // À implémenter plus tard si nécessaire
         });
+
+        // Récupérer le statut KYC
+        try {
+          const kycResponse = await api.get('/kyc/status');
+          setKycStatus(kycResponse.data.data);
+        } catch (kycError) {
+          console.error('Erreur lors de la récupération du statut KYC:', kycError);
+          // Ne pas afficher d'erreur pour le KYC, juste laisser null
+        }
 
         setError(null);
       } catch (err) {
@@ -376,6 +394,49 @@ const ProfilePage = () => {
               </button>
             </div>
 
+            {/* Vérification d'identité (KYC) */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm font-medium text-gray-600">Vérification d'identité</label>
+                {!kycStatus?.hasActiveKyc && (
+                  <button
+                    onClick={() => navigate("/kyc")}
+                    className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
+                  >
+                    <FiShield className="mr-1" /> Vérifier mon identité
+                  </button>
+                )}
+              </div>
+              {kycStatus?.hasActiveKyc ? (
+                <div className="flex items-center space-x-2">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                    kycStatus.statutVerification === 'APPROUVE'
+                      ? 'bg-green-100 text-green-800'
+                      : kycStatus.statutVerification === 'REFUSE'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    <FiShield className="mr-1" />
+                    {kycStatus.statutVerification === 'APPROUVE'
+                      ? 'Vérifié'
+                      : kycStatus.statutVerification === 'REFUSE'
+                      ? 'Refusé'
+                      : 'En attente de vérification'}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    Soumis le {new Date(kycStatus.submissionDate).toLocaleDateString()}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-gray-800">Non vérifié</p>
+              )}
+              {kycStatus?.commentaireAdmin && (
+                <p className="text-sm text-gray-600 mt-1">
+                  <strong>Commentaire admin:</strong> {kycStatus.commentaireAdmin}
+                </p>
+              )}
+            </div>
+
           </div>
 
           {/* Section des projets */}
@@ -425,9 +486,9 @@ const ProfilePage = () => {
                     </button>
                   </div>
                 ) : (
-                  contributions.slice(0, 1).map((t) => (
+                  contributions.slice(0, 1).map((t, index) => (
                     <div
-                      key={t.id}
+                      key={`transaction-${t.id || index}`}
                       className="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
                     >
                       <h3 className="text-lg font-bold text-gray-800 mb-1">
@@ -461,9 +522,9 @@ const ProfilePage = () => {
                       </button>
                     </div>
                   ) : (
-                    projetsSoutenus.map((projet) => (
+                    projetsSoutenus.map((projet, index) => (
                       <div
-                        key={projet.id}
+                        key={`soutenu-${projet.id || index}`}
                         className="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
                       >
                         <div className="flex justify-between items-start mb-2">
@@ -499,9 +560,9 @@ const ProfilePage = () => {
                       </button>
                     </div>
                   ) : (
-                    projetsCrees.map((projet) => (
+                    projetsCrees.map((projet, index) => (
                       <div
-                        key={projet.id}
+                        key={`cree-${projet.id || index}`}
                         className="p-4 border rounded-lg shadow-sm hover:shadow-md transition"
                       >
                         <div className="flex justify-between items-start mb-2">

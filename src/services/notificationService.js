@@ -14,6 +14,21 @@ export const sendNotification = ({ userId, type, data, channels = ["console"] })
       message = `La cagnotte "${data.cagnotteTitle}" a été clôturée !`;
       break;
 
+    // Notifications KYC
+    case "kycSubmitted":
+      message = `✅ Votre demande de vérification d'identité a été soumise avec succès. Elle sera examinée sous 24-48h.`;
+      break;
+
+    case "kycApproved":
+      message = `🎉 Félicitations ! Votre vérification d'identité a été approuvée. Vous pouvez maintenant utiliser toutes les fonctionnalités.`;
+      break;
+
+    case "kycRejected":
+      message = `❌ Votre vérification d'identité a été rejetée.` +
+        (data.commentaireAdmin ? ` Raison : ${data.commentaireAdmin}` : "") +
+        ` Vous pouvez soumettre une nouvelle demande avec des documents corrects.`;
+      break;
+
     // la Notif pour le contributeur résultat paiement
     case "paymentResult":
       if (data.status === "success") {

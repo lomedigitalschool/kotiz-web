@@ -22,7 +22,7 @@ import PaymentStatusPage from "./pages/PaymentStatusPage";
 import { useAuth } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Breadcrumb from "./components/Breadcrumb";
-import NotificationProvider from "./components/NotificationProvider";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import WithdrawPage from './pages/WithdrawPage';
 
 

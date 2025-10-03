@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import logoHorizontale from "../assets/logos/logo_horizontale.png";
-import { useNotification } from "../hooks/useNotification";
+import { useNotification } from "../contexts/NotificationContext";
 
 export default function KycFormForm() {
     const navigate = useNavigate();
@@ -68,6 +68,11 @@ export default function KycFormForm() {
             // Message positif via notification
             notify("Votre demande KYC a été soumise avec succès !", "success");
             setMessage(""); // Vider le message d'erreur
+
+            // Redirection vers le dashboard après un court délai pour permettre à l'utilisateur de voir la notification
+            setTimeout(() => {
+              navigate("/dashboard");
+            }, 2000);
         } catch (error) {
             console.error("Erreur KYC:", error);
             notify("Une erreur est survenue lors de la soumission. Veuillez réessayer.", "error");
