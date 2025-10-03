@@ -57,9 +57,10 @@ export default function KycFormForm() {
             }
 
             // Appel réel à l'API
-            const response = await api.post("/kyc", data, {
+            const response = await api.post("/kyc/submit", data, {
                 headers: {
                     "Content-Type": "multipart/form-data",
+                      Authorization: `Bearer ${token}`
                 },
             });
 
