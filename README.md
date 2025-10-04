@@ -446,9 +446,9 @@ Développé par **Lome Digital School**
 
 ## 🔗 Liens utiles
 
-- [Backend Kotiz](../kotiz-back-init) - API backend
-- [Documentation API](../kotiz-back-init/README.md) - Documentation complète de l'API
-- [Collection Postman](../kotiz-back-init/Kotiz_API_Collection.postman_collection.json) - Tests API mis à jour
+- [Backend Kotiz](../kotiz-back) - API backend
+- [Documentation API](../kotiz-back/README.md) - Documentation complète de l'API
+- [Collection Postman](../kotiz-back/Kotiz_API_Collection.postman_collection.json) -
 
 ---
 
