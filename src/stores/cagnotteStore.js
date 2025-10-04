@@ -203,9 +203,13 @@ export const useCagnotteStore = create((set, get) => ({
 
       // Traiter les données de base et calculer les montants et contributeurs depuis les contributions incluses
       const processedData = Array.isArray(data) ? data.map(c => {
-        // Calculer le montant total collecté depuis les contributions
-        const totalCollected = c.contributions?.reduce((sum, contrib) =>
-          sum + parseFloat(contrib.amount || 0), 0) || parseFloat(c.currentAmount) || 0;
+        // Calculer le montant total collecté UNIQUEMENT depuis les contributions
+        // Ne pas utiliser c.currentAmount de l'API car il peut être incorrect
+        const contributionsAmount = c.contributions?.reduce((sum, contrib) =>
+          sum + parseFloat(contrib.amount || 0), 0) || 0;
+
+        // Pour les cagnottes sans contributions, forcer à 0
+        const totalCollected = contributionsAmount;
 
         // Calculer le nombre de contributeurs uniques
         const contributorsSet = new Set();
