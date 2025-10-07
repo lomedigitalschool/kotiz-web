@@ -148,14 +148,37 @@ export const useCagnotteStore = create((set, get) => ({
 
       // Extraire les données du résultat (car l'API retourne un objet avec data)
       const data = result.data || result;
-      const processedData = Array.isArray(data) ? data.map(c => ({
-        ...c,
-        currentAmount: parseFloat(c.currentAmount) || 0,
-        goalAmount: parseFloat(c.goalAmount) || 0,
-        collectedAmount: parseFloat(c.currentAmount) || 0, // Pour la compatibilité
-        // Marquer si c'est une cagnotte publique ou privée
-        isAccessible: c.type === 'public' || c.userId === undefined // userId undefined = publique
-      })) : [];
+      const processedData = Array.isArray(data) ? data.map(c => {
+        // Calculer le montant total collecté UNIQUEMENT depuis les contributions si disponibles
+        const contributionsAmount = c.contributions?.reduce((sum, contrib) =>
+          sum + parseFloat(contrib.amount || 0), 0) || 0;
+
+        // Pour les cagnottes avec contributions, utiliser le calcul, sinon utiliser currentAmount
+        const totalCollected = contributionsAmount > 0 ? contributionsAmount : parseFloat(c.currentAmount) || 0;
+
+        // Calculer le nombre de contributeurs uniques
+        const contributorsSet = new Set();
+        c.contributions?.forEach(contrib => {
+          if (contrib.userId) {
+            contributorsSet.add(contrib.userId);
+          } else if (contrib.user) {
+            contributorsSet.add(contrib.user);
+          } else if (contrib.contributorName) {
+            contributorsSet.add(contrib.contributorName);
+          }
+        });
+
+        return {
+          ...c,
+          currentAmount: totalCollected,
+          goalAmount: parseFloat(c.goalAmount) || 0,
+          collectedAmount: totalCollected, // Pour la compatibilité
+          contributorsCount: contributorsSet.size,
+          contributors: Array.from(contributorsSet),
+          // Marquer si c'est une cagnotte publique ou privée
+          isAccessible: c.type === 'public' || c.userId === undefined // userId undefined = publique
+        };
+      }) : [];
 
       set({ cagnottes: processedData, loading: false });
       // Sauvegarder toutes les cagnottes dans localStorage (publiques + privées)

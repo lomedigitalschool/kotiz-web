@@ -5,7 +5,7 @@ import { useCagnotteStore } from '../stores/cagnotteStore';
  * Hook pour gérer le rafraîchissement automatique silencieux des données
  * Rafraîchit les données en arrière-plan sans perturber l'expérience utilisateur
  */
-export const useSilentRefresh = (enabled = true, intervalMs = 30000) => {
+export const useSilentRefresh = (enabled = true, intervalMs = 300000) => { // 5 minutes par défaut
   const { fetchUserCagnottes, fetchUserContributions, fetchNotifications } = useCagnotteStore();
   const intervalRef = useRef(null);
   const isRefreshingRef = useRef(false);

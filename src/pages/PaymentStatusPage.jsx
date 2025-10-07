@@ -1,31 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 
 const PaymentStatusPage = () => {
   const { contributionId } = useParams();
   const navigate = useNavigate();
-  
+  const location = useLocation();
+
   const [status, setStatus] = useState('checking');
   const [contribution, setContribution] = useState(null);
   const [error, setError] = useState(null);
   const [countdown, setCountdown] = useState(300); // 5 minutes
+  const [popupBlocked, setPopupBlocked] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState(null);
+
+  // Vérifier les données passées dans l'état de navigation
+  useEffect(() => {
+    if (location.state) {
+      const { popupBlocked: blocked, paymentUrl: url } = location.state;
+      if (blocked) {
+        setPopupBlocked(true);
+        setPaymentUrl(url);
+      }
+    }
+  }, [location.state]);
 
   // Vérifier le statut du paiement
   const checkPaymentStatus = async () => {
     try {
       const response = await api.get(`/contributions/${contributionId}/status`);
-      
+
       if (response.data.success) {
         const contributionData = response.data.contribution;
         setContribution(contributionData);
-        
+
         if (contributionData.status === 'completed') {
           setStatus('success');
           // Rediriger vers le dashboard après 3 secondes
           setTimeout(() => {
-            navigate('/dashboard', { 
-              state: { 
+            navigate('/dashboard', {
+              state: {
                 message: 'Contribution réalisée avec succès !',
                 type: 'success'
               }
@@ -258,14 +272,33 @@ const PaymentStatusPage = () => {
 
         {/* Instructions pour le paiement mobile */}
         {status === 'pending' && (
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg text-left">
-            <h4 className="font-medium text-blue-900 mb-2">Instructions de paiement</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Vérifiez votre téléphone pour le SMS de confirmation</li>
-              <li>• Suivez les instructions de votre opérateur mobile</li>
-              <li>• Saisissez votre code PIN pour confirmer</li>
-              <li>• Le paiement sera automatiquement détecté</li>
-            </ul>
+          <div className="mt-6 space-y-4">
+            {/* Message spécial si popup bloqué */}
+            {popupBlocked && paymentUrl && (
+              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg text-left">
+                <h4 className="font-medium text-orange-900 mb-2">🔓 Fenêtre de paiement bloquée</h4>
+                <p className="text-sm text-orange-800 mb-3">
+                  Votre navigateur a bloqué l'ouverture automatique de la fenêtre de paiement.
+                  Cliquez sur le bouton ci-dessous pour ouvrir la page de paiement.
+                </p>
+                <button
+                  onClick={() => window.open(paymentUrl, '_blank')}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-600 transition font-medium"
+                >
+                  Ouvrir la page de paiement
+                </button>
+              </div>
+            )}
+
+            <div className="p-4 bg-blue-50 rounded-lg text-left">
+              <h4 className="font-medium text-blue-900 mb-2">Instructions de paiement</h4>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Vérifiez votre téléphone pour le SMS de confirmation</li>
+                <li>• Suivez les instructions de votre opérateur mobile</li>
+                <li>• Saisissez votre code PIN pour confirmer</li>
+                <li>• Le paiement sera automatiquement détecté</li>
+              </ul>
+            </div>
           </div>
         )}
       </div>

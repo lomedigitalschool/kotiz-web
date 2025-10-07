@@ -262,13 +262,6 @@ VITE_API_BASE_URL=http://localhost:5000/api/v1
 # Configuration de l'application
 VITE_APP_NAME=Kotiz
 ```
-### Architecture des services
-
-- **Frontend** : `http://localhost:5173` (Vite + React)
-- **Backend API** : `http://localhost:5000/api/v1` (Express + PostgreSQL)
-- **Admin Panel** : `http://localhost:5000/admin` (AdminJS)
-- **Base de données** : PostgreSQL
-- **Uploads** : `http://localhost:5000/uploads/` (fichiers statiques)
 
 ## 🚀 Déploiement
 

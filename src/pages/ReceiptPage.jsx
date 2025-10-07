@@ -77,7 +77,7 @@ const ReceiptPage = () => {
               <div class="receipt">
                 ${receiptElement.innerHTML}
               </div>
-              <script>
+              <script nonce="${window.document.getElementById('root').dataset.nonce}">
                 window.onload = function() {
                   window.print();
                 };

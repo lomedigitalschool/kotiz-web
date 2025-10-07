@@ -110,7 +110,10 @@ const ContributorsPage = () => {
       <h1 className="text-4xl font-bold mb-2 text-gray-800 text-center">
         Contributeurs de "{cagnotte.title}"
       </h1>
-      <p className="text-gray-600 mb-6 text-center">{cContributors.length} contributeurs</p>
+      <p className="text-gray-600 mb-2 text-center">{cContributors.length} contributeurs</p>
+      <p className="text-green-600 font-semibold mb-6 text-center">
+        Total collecté: {cContributors.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0).toLocaleString()} {cagnotte.currency || 'XOF'}
+      </p>
 
       <div className="flex flex-col gap-2">
 

@@ -24,13 +24,33 @@ const WithdrawPage = () => {
     useEffect(() => {
         const fetchCagnotte = async () => {
             try {
-                const res = await api.get(`/pulls/${id}`);
-                setCagnotte(res.data);
+                console.log('Chargement cagnotte ID:', id);
+                const response = await api.get(`/pulls/${id}`);
+                console.log('📥 Données cagnotte récupérées:', response.data);
+                
+                // Harmoniser le champ titre comme dans ContributePage
+                const data = response.data.data || response.data;
+                const cagnotteData = {
+                    ...data,
+                    title: data.title || data.name || data.pullTitle || "Cagnotte"
+                };
+                
+                if (!cagnotteData || !cagnotteData.id) {
+                    throw new Error('Données de cagnotte invalides');
+                }
+                
+                console.log('Cagnotte chargée:', cagnotteData.title, 'Status:', cagnotteData.status);
+                setCagnotte(cagnotteData);
             } catch (err) {
-                setError("Impossible de charger la cagnotte.");
+                console.error('Erreur chargement cagnotte:', err);
+                const errorMessage = err.response?.data?.error || err.message || "Impossible de charger la cagnotte.";
+                setError(errorMessage);
             }
         };
-        fetchCagnotte();
+        
+        if (id) {
+            fetchCagnotte();
+        }
     }, [id]);
 
     // récupérer le statut KYC de l'utilisateur
@@ -77,7 +97,7 @@ const WithdrawPage = () => {
                 provider: method === "mobile" ? mobileProvider : undefined,
             };
 
-            await api.post(`/cagnottes/${id}/withdrawals`, payload);
+            await api.post(`/pulls/${id}/withdraw`, payload);
 
             setSuccess("Retrait en cours de traitement ✅");
             setTimeout(() => navigate("/transactions"), 2000); // rediriger vers historique
@@ -88,35 +108,82 @@ const WithdrawPage = () => {
         }
     };
 
-    if (!cagnotte) return <p>Chargement...</p>;
-    if (kycLoading) return <p className="text-center mt-[80px] text-gray-500">Vérification KYC...</p>;
-
-    const isClosed = cagnotte.status === 'closed';
-    const hasApprovedKyc = kycStatus && kycStatus.statutVerification === 'APPROUVE';
-
-    // Vérifier si l'utilisateur peut retirer (cagnotte fermée + KYC approuvé)
-    if (!isClosed) {
+    if (error && !cagnotte) {
         return (
             <div className="max-w-lg mx-auto p-6 bg-white shadow rounded-lg mt-10">
-                <h1 className="text-2xl font-bold mb-4">Retirer fonds de "{cagnotte.title}"</h1>
-                <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-md">
-                    <p className="font-semibold">Cagnotte non fermée</p>
-                    <p>Vous ne pouvez retirer des fonds que lorsque la cagnotte est fermée.</p>
+                <div className="bg-red-100 border border-red-400 text-red-800 p-4 rounded-md">
+                    <p className="font-semibold">Erreur</p>
+                    <p>{error}</p>
                     <button
-                        onClick={() => navigate(`/cagnottes/${id}`)}
-                        className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                        onClick={() => navigate(-1)}
+                        className="mt-2 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
                     >
-                        Retour à la cagnotte
+                        Retour
                     </button>
                 </div>
             </div>
         );
     }
+    
+    if (!cagnotte) return <p className="text-center mt-10">Chargement de la cagnotte...</p>;
+    if (kycLoading) return <p className="text-center mt-[80px] text-gray-500">Vérification KYC...</p>;
 
-    if (!hasApprovedKyc) {
+    const isClosed = cagnotte.status === 'closed';
+    const hasApprovedKyc = kycStatus && kycStatus.statutVerification === 'APPROUVE';
+    
+    // Calculer les vraies conditions de retrait
+    const isGoalReached = cagnotte.currentAmount >= cagnotte.goalAmount;
+    const isDeadlinePassed = cagnotte.deadline && new Date() > new Date(cagnotte.deadline);
+    
+    // Conditions de retrait : (fermée OU objectif atteint OU deadline dépassée) ET KYC validé
+    const canWithdraw = (isClosed || isGoalReached || isDeadlinePassed) && hasApprovedKyc;
+    
+    console.log('Conditions retrait:', {
+        isClosed,
+        isGoalReached,
+        isDeadlinePassed,
+        hasApprovedKyc,
+        canWithdraw
+    });
+
+    if (!canWithdraw) {
         return (
             <div className="max-w-lg mx-auto p-6 bg-white shadow rounded-lg mt-10">
-                <h1 className="text-2xl font-bold mb-4">Retirer fonds de "{cagnotte.title}"</h1>
+                <h1 className="text-2xl font-bold mb-4">Retirer fonds de "{cagnotte.title || 'Cagnotte'}"</h1>
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-md">
+                    <p className="font-semibold">Conditions de retrait non remplies</p>
+                    <p>Pour retirer des fonds, vous devez avoir un KYC validé ET (cagnotte fermée OU objectif atteint OU date limite dépassée).</p>
+                    <div className="flex gap-2 mt-3">
+                        <button
+                            onClick={async () => {
+                                try {
+                                    await api.post(`/pulls/${id}/close`);
+                                    window.location.reload();
+                                } catch (err) {
+                                    alert('Erreur lors de la fermeture: ' + (err.response?.data?.error || err.message));
+                                }
+                            }}
+                            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                        >
+                            Fermer la cagnotte
+                        </button>
+                        <button
+                            onClick={() => navigate(`/cagnottes/${id}`)}
+                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                        >
+                            Retour à la cagnotte
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Cette section n'est plus nécessaire car gérée dans canWithdraw
+    if (false) {
+        return (
+            <div className="max-w-lg mx-auto p-6 bg-white shadow rounded-lg mt-10">
+                <h1 className="text-2xl font-bold mb-4">Retirer fonds de "{cagnotte.title || 'Cagnotte'}"</h1>
                 <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-md">
                     <div className="flex items-center gap-2">
                         <span>⚠️</span>
@@ -138,9 +205,9 @@ const WithdrawPage = () => {
 
     return (
         <div className="max-w-lg mx-auto p-6 bg-white shadow rounded-lg mt-10">
-            <h1 className="text-2xl font-bold mb-4">Retirer fonds de "{cagnotte.title}"</h1>
+            <h1 className="text-2xl font-bold mb-4">Retirer fonds de "{cagnotte.title || 'Cagnotte'}"</h1>
             <p className="mb-3 text-gray-600">
-                Solde disponible : <strong>{cagnotte.currentAmount} {cagnotte.currency}</strong>
+                Solde disponible : <strong>{cagnotte.currentAmount || 0} {cagnotte.currency || 'XOF'}</strong>
             </p>
 
             <form onSubmit={handleWithdraw} className="space-y-4">

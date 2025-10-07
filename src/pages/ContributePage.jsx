@@ -209,6 +209,9 @@ const ContributePage = () => {
 
     const newContribution = { cagnotteId: cagnotte.id, userId: anonymous ? null : 1, amount: Number(amount), anonymous, message };
 
+    // Ouvrir un onglet vide au moment du clic utilisateur (avant la requête asynchrone)
+    const paymentTab = window.open('', '_blank');
+
     try {
       setSubmitting(true); setSubmitError("");
 
@@ -227,40 +230,69 @@ const ContributePage = () => {
       const serverResp = await createContributionOnServer(serverPayload);
 
       if (serverResp?.success) {
+        // Rafraîchir les données du store après contribution réussie
+        try {
+          console.log('🔄 Rafraîchissement des données après contribution réussie');
+
+          // Rafraîchir toutes les cagnottes pour mettre à jour les statistiques
+          await fetchAllCagnottes();
+
+          // Rafraîchir les contributions utilisateur pour le dashboard
+          if (!isGuest) {
+            await fetchUserContributions();
+
+            // Rafraîchir aussi les cagnottes utilisateur pour mettre à jour les montants et contributeurs
+            const { fetchUserCagnottes } = useCagnotteStore.getState();
+            if (fetchUserCagnottes) {
+              await fetchUserCagnottes();
+            }
+          }
+
+          console.log('✅ Données du dashboard rafraîchies après contribution');
+        } catch (refreshError) {
+          console.error('❌ Erreur lors du rafraîchissement des données:', refreshError);
+        }
+
         // Contribution créée avec succès sur le serveur
         if (serverResp?.payment?.paymentUrl) {
-          // Ouvrir le paiement dans une nouvelle fenêtre pour permettre le retour
-          console.log("🔗 Ouverture paiement externe:", serverResp.payment.paymentUrl);
-          const paymentWindow = window.open(serverResp.payment.paymentUrl, '_blank', 'width=800,height=600');
-
-          if (paymentWindow) {
-            // Si la fenêtre s'ouvre, afficher un message d'instruction
-            alert("Une fenêtre de paiement s'est ouverte. Veuillez compléter le paiement dans cette fenêtre. Une fois terminé, vous pouvez fermer la fenêtre et revenir à cette page pour voir le statut de votre contribution.");
-            // Rediriger vers la page de statut après un court délai
-            setTimeout(() => {
-              navigate(`/payment-status/${serverResp.contribution?.id}`);
-            }, 2000);
+          // Rediriger l'onglet pré-ouvert vers l'URL de paiement
+          console.log("🔗 Redirection onglet paiement vers:", serverResp.payment.paymentUrl);
+          if (paymentTab) {
+            paymentTab.location.href = serverResp.payment.paymentUrl;
           } else {
-            // Fallback si popup bloqué
-            alert("Votre navigateur a bloqué la fenêtre de paiement. Vous allez être redirigé vers la page de paiement. Après avoir payé, revenez manuellement à l'application Kotiz.");
-            window.location.href = serverResp.payment.paymentUrl;
+            // Fallback si l'onglet a été fermé
+            window.open(serverResp.payment.paymentUrl, '_blank');
           }
+
+          // Rediriger vers la page de statut après un court délai
+          setTimeout(() => {
+            navigate(`/payment-status/${serverResp.contribution?.id}`);
+          }, 1000);
           return;
         } else {
-          // Paiement initié, rediriger vers la page de suivi
+          // Paiement initié, fermer l'onglet vide et rediriger vers la page de suivi
+          if (paymentTab) {
+            paymentTab.close();
+          }
           console.log("📊 Redirection vers suivi paiement:", serverResp.contribution?.id);
           navigate(`/payment-status/${serverResp.contribution?.id}`);
           return;
         }
       } else {
-        // Échec du paiement, afficher l'erreur
+        // Échec du paiement, fermer l'onglet vide et afficher l'erreur
+        if (paymentTab) {
+          paymentTab.close();
+        }
         console.error("❌ Échec initiation paiement:", serverResp.error);
         setSubmitError(serverResp.error || "Erreur lors de l'initiation du paiement");
         return;
       }
 
     } catch (err) {
-      // Erreur inattendue
+      // Erreur inattendue, fermer l'onglet vide
+      if (paymentTab) {
+        paymentTab.close();
+      }
       console.error("Erreur inattendue:", err);
       setSubmitError("Une erreur inattendue s'est produite. Veuillez réessayer.");
     } finally { setSubmitting(false); }

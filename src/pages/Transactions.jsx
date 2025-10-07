@@ -13,6 +13,22 @@ const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Fonction pour formater le nom de la méthode de paiement
+  const formatPaymentMethod = (method) => {
+    const methodNames = {
+      'orange_money': 'Orange Money',
+      'mtn_money': 'MTN Mobile Money',
+      'moov_money': 'Moov Money',
+      'wave': 'Wave',
+      'flooz': 'Flooz',
+      't_money': 'T-Money',
+      'tmoney': 'T-Money', // Support pour l'ancien format
+      'card': 'Carte bancaire',
+      'bank_transfer': 'Virement bancaire'
+    };
+    return methodNames[method] || method || 'Carte bancaire';
+  };
+
   const [filterType, setFilterType] = useState("all"); 
   const [filterStatus, setFilterStatus] = useState("all"); 
   const [filterStartDate, setFilterStartDate] = useState(""); 
@@ -33,7 +49,7 @@ const Transactions = () => {
           type: "contribution",
           status: "completed", // Les contributions sont toujours complétées
           amount: parseFloat(contrib.amount) || 0,
-          method: contrib.paymentMethod || "card",
+          method: formatPaymentMethod(contrib.paymentMethod),
           reference: contrib.reference || `CONTRIB-${contrib.id}`,
           date: contrib.createdAt ? new Date(contrib.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           cagnotteTitle: contrib.cagnotteTitle || "Cagnotte inconnue",

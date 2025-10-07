@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 import QRCode from "react-qr-code";
@@ -42,8 +42,14 @@ const CagnotteDetails = () => {
    const [userLoading, setUserLoading] = useState(true);
    const [kycStatus, setKycStatus] = useState(null);
    const [kycLoading, setKycLoading] = useState(true);
-
-  useEffect(() => {
+ 
+   // Calculer le montant total collecté à partir des contributions pour cohérence
+   const calculatedCurrentAmount = useMemo(() =>
+     contributions.reduce((sum, contrib) => sum + parseFloat(contrib.amount || 0), 0),
+     [contributions]
+   );
+ 
+   useEffect(() => {
     const fetchCagnotteDetails = async () => {
       try {
         setLoading(true);
@@ -70,15 +76,18 @@ const CagnotteDetails = () => {
         console.log('Données complètes de l\'API:', cagnotteData);
 
         setCagnotte(cagnotteData);
-        
+
         // Si la cagnotte contient déjà les contributions, les utiliser
-        if (cagnotteData.recentContributions && Array.isArray(cagnotteData.recentContributions)) {
-          console.log('✅ Contributions trouvées dans les données de la cagnotte:', cagnotteData.recentContributions);
+        if (cagnotteData.contributions && Array.isArray(cagnotteData.contributions)) {
+          console.log('✅ Contributions trouvées dans les données de la cagnotte:', cagnotteData.contributions);
+          setContributions(cagnotteData.contributions);
+        } else if (cagnotteData.recentContributions && Array.isArray(cagnotteData.recentContributions)) {
+          console.log('✅ Contributions trouvées dans recentContributions:', cagnotteData.recentContributions);
           setContributions(cagnotteData.recentContributions);
         }
 
         // Fetch contributions separately si pas déjà incluses
-        if (!cagnotteData.recentContributions || cagnotteData.recentContributions.length === 0) {
+        if ((!cagnotteData.contributions || cagnotteData.contributions.length === 0) && (!cagnotteData.recentContributions || cagnotteData.recentContributions.length === 0)) {
           try {
             let contribResponse;
             try {
@@ -151,26 +160,17 @@ const CagnotteDetails = () => {
     }
   }, [location.state]);
   
-  // Rafraîchir automatiquement toutes les 30 secondes
+  // Rafraîchir automatiquement toutes les 5 minutes (au lieu de 30 secondes)
   useEffect(() => {
     const interval = setInterval(() => {
       console.log('Rafraîchissement automatique des détails de la cagnotte');
       setRefreshKey(prev => prev + 1);
-    }, 30000);
-    
+    }, 300000); // 5 minutes
+
     return () => clearInterval(interval);
   }, []);
   
-  // Rafraîchir quand on revient sur la page
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('Retour sur la page, rafraîchissement');
-      setRefreshKey(prev => prev + 1);
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  // Rafraîchissement au focus supprimé pour une navigation plus fluide
 
   // Clôture automatique de la cagnotte
   useEffect(() => {
@@ -214,12 +214,12 @@ const CagnotteDetails = () => {
       }
     };
 
-    // Vérifier immédiatement et toutes les 30 secondes
+    // Vérifier immédiatement et toutes les 2 minutes
     checkAndCloseCagnotte();
-    const interval = setInterval(checkAndCloseCagnotte, 30000);
+    const interval = setInterval(checkAndCloseCagnotte, 120000); // 2 minutes
 
     return () => clearInterval(interval);
-  }, [cagnotte, contributions]);
+  }, [cagnotte, contributions, calculatedCurrentAmount]);
 
 
   // accès utilisateur - récupérer l'utilisateur depuis l'API
@@ -274,10 +274,10 @@ const CagnotteDetails = () => {
   // Mais on peut utiliser isOwner pour afficher des informations supplémentaires
   const isOwner = cagnotte.isOwner || (cagnotte.userId === userId) || (cagnotte.owner?.id === userId);
 
-  const progress = Math.min(((cagnotte.currentAmount || 0) / cagnotte.goalAmount) * 100, 100);
+  const progress = Math.min((calculatedCurrentAmount / cagnotte.goalAmount) * 100, 100);
 
   // Vérifier les conditions pour le retrait
-  const currentAmount = cagnotte.currentAmount || 0;
+  const currentAmount = calculatedCurrentAmount;
   const goalAmount = cagnotte.goalAmount;
   const deadline = cagnotte.deadline ? new Date(cagnotte.deadline) : null;
   const now = new Date();
@@ -301,7 +301,7 @@ const CagnotteDetails = () => {
 
   const nbContribs = allContribs.length;
   const avgDonation = nbContribs > 0 ? allContribs.reduce((acc, c) => acc + c.amount, 0) / nbContribs : 0;
-  const remain = Math.max(cagnotte.goalAmount - (cagnotte.currentAmount || 0), 0);
+  const remain = Math.max(cagnotte.goalAmount - calculatedCurrentAmount, 0);
 
   const creationDate = new Date(cagnotte.createdAt);
   const daysElapsed = Math.floor((Date.now() - creationDate) / (1000 * 60 * 60 * 24));
@@ -469,7 +469,7 @@ const CagnotteDetails = () => {
                           className="px-4 py-2 text-white font-semibold rounded-md shadow hover:opacity-90 transition"
                           style={{ backgroundColor: '#10B981' }}
                         >
-                          Retirer les fonds ({cagnotte.currentAmount || 0} {cagnotte.currency} disponible)
+                          Retirer les fonds ({calculatedCurrentAmount} {cagnotte.currency} disponible)
                         </button>
                       )}
                     </>
@@ -533,7 +533,7 @@ const CagnotteDetails = () => {
             <p><strong>Contributeurs :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : nbContribs}</p>
             <p><strong>Don moyen :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : `${avgDonation.toFixed(2)} ${cagnotte.currency}`}</p>
             <p><strong>Montant restant :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : `${remain.toLocaleString()} ${cagnotte.currency}`}</p>
-            <p><strong>Montant collecté :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : `${(cagnotte.currentAmount || 0).toLocaleString()} ${cagnotte.currency}`}</p>
+            <p><strong>Montant collecté :</strong> {cagnotte.type === "private" && !isOwner ? "Masqué" : `${calculatedCurrentAmount.toLocaleString()} ${cagnotte.currency}`}</p>
           </div>
 
           {/* Description */}

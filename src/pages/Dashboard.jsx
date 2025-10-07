@@ -17,7 +17,7 @@ const Dashboard = () => {
   const { logout } = useAuth();
   const { notify } = useNotification();
   const { cagnottes, fetchUserCagnottes, contributions, fetchUserContributions, loading, error, deleteCagnotte, fetchCagnotteContributions } = useCagnotteStore();
-  const [userStats, setUserStats] = useState({ totalCollected: 0, activeCount: 0, totalContributors: 0 });
+  const [userStats, setUserStats] = useState({ totalCollected: 0, activeCount: 0, totalContributors: 0, averageDonation: 0 });
   const [kycStatus, setKycStatus] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [cagnotteContributions, setCagnotteContributions] = useState({});
@@ -44,7 +44,7 @@ const Dashboard = () => {
   }, [dataLoaded]);
 
   // Utiliser le hook de rafraîchissement silencieux
-  const { forceRefresh } = useSilentRefresh(true, 60000); // Rafraîchissement toutes les 60 secondes
+  const { forceRefresh } = useSilentRefresh(true, 300000); // Rafraîchissement toutes les 5 minutes
 
   const loadCagnotteContributions = async (cagnottesList) => {
     if (!cagnottesList || cagnottesList.length === 0) return;
@@ -118,6 +118,16 @@ const Dashboard = () => {
           // Ne pas afficher d'erreur pour le KYC, juste laisser null
         }
 
+        // Récupérer la moyenne des dons
+        try {
+          const averageResponse = await api.get('/contributions/average-donation');
+          const averageDonation = averageResponse.data.averageDonation || 0;
+          setUserStats(prev => ({ ...prev, averageDonation }));
+        } catch (averageError) {
+          console.error('Erreur lors de la récupération de la moyenne des dons:', averageError);
+          setUserStats(prev => ({ ...prev, averageDonation: 0 }));
+        }
+
         console.log('✅ Dashboard: Données principales chargées');
 
         // Marquer que les vraies données sont chargées
@@ -141,18 +151,7 @@ const Dashboard = () => {
     loadUserData();
   }, []); // une seule fois
 
-  useEffect(() => {
-    const handleFocus = async () => {
-      console.log('🔄 Dashboard: Rafraîchissement au focus');
-      await fetchUserContributions();
-      await fetchUserCagnottes();
-      const currentCagnottes = useCagnotteStore.getState().cagnottes;
-      await loadCagnotteContributions(currentCagnottes);
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [fetchUserCagnottes, fetchUserContributions]);
+  // Rafraîchissement au focus supprimé pour éviter les interruptions de navigation
 
 
   // --- Préparer les jeux de données pour les graphiques (useMemo pour stabilité) ---
@@ -165,7 +164,7 @@ const Dashboard = () => {
   }, [cagnottes]);
 
   // Memoize les statistiques pour éviter les recalculs inutiles
-  const memoizedUserStats = useMemo(() => userStats, [userStats.totalCollected, userStats.activeCount, userStats.totalContributors]);
+  const memoizedUserStats = useMemo(() => userStats, [userStats.totalCollected, userStats.activeCount, userStats.totalContributors, userStats.averageDonation]);
 
   // Agrégation des contributions par cagnotteId (à partir des contributions)
   const contributionsAggregated = useMemo(() => {
@@ -185,21 +184,19 @@ const Dashboard = () => {
     return map;
   }, [contributions]);
 
-  // Data pour BarChart (montants collectés par cagnotte) : on merge cagnottes et contributionsAggregated
+  // Data pour BarChart (montants collectés par cagnotte)
   const barData = useMemo(() => {
     const data = [];
     (cagnottes || []).forEach(c => {
-      const cagId = c.id;
-      const agg = contributionsAggregated.get(cagId);
-      const total = agg ? agg.total : (parseFloat(c.currentAmount) || 0);
+      const total = parseFloat(c.currentAmount) || 0;
       data.push({
         title: c.title || 'Sans titre',
         currentAmount: total,
-        id: cagId
+        id: c.id
       });
     });
     return data;
-  }, [cagnottes, contributionsAggregated]);
+  }, [cagnottes]);
 
   // Data pour PieChart (utiliser seulement cagnottes avec montant > 0)
   const pieData = useMemo(() => {
@@ -394,7 +391,7 @@ const Dashboard = () => {
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Montants collectés</p>
           <p className="text-2xl font-bold text-green-600">{(memoizedUserStats.totalCollected || 0).toLocaleString()} FCFA</p>
@@ -406,6 +403,10 @@ const Dashboard = () => {
         <div className="bg-white rounded-xl shadow p-4 text-center">
           <p className="text-gray-500">Nombre de contributeurs</p>
           <p className="text-2xl font-bold text-purple-600">{memoizedUserStats.totalContributors || 0}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow p-4 text-center">
+          <p className="text-gray-500">Don moyen</p>
+          <p className="text-2xl font-bold text-orange-600">{(memoizedUserStats.averageDonation || 0).toLocaleString()} FCFA</p>
         </div>
       </div>
 
@@ -466,8 +467,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {cagnottes.map(c => {
            const cagId = c.id;
-           const agg = contributionsAggregated.get(cagId);
-           const collectedAmount = agg ? agg.total : parseFloat(c.currentAmount || c.collectedAmount || 0);
+           const collectedAmount = parseFloat(c.currentAmount || 0);
            const goalAmount = c.goalAmount || 1; // Éviter division par zéro
            const progress = goalAmount > 0 ? Math.min((collectedAmount / goalAmount) * 100, 100) : 0;
           return (
@@ -505,34 +505,31 @@ const Dashboard = () => {
                   Voir détails
                 </button>
                 {c.status !== 'closed' && (
-                  <>
-                    <button onClick={(e) => { e.stopPropagation(); navigate(`/edit-cagnotte/${c.id}`); }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: colors.primary }} >
-                      Modifier
-                    </button>
-                    <button onClick={async (e) => {
-                      e.stopPropagation();
-                      if (!window.confirm(`Supprimer la cagnotte "${c.title}" ?`)) return;
-                      try {
-                        // Appel API pour supprimer la cagnotte
-                        await api.delete(`/pulls/${c.id}`);
-                        // Supprimer du store local
-                        deleteCagnotte(c.id);
-                        notify(`Cagnotte "${c.title}" supprimée avec succès`, 'success');
-                        // Pas besoin de redirection car on est déjà sur le dashboard
-                      } catch (error) {
-                        console.error('Erreur lors de la suppression:', error);
-                        notify('Erreur lors de la suppression. Vérifiez que vous êtes le propriétaire.', 'error');
-                      }
-                    }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: "#EF4444" }} >
-                      Supprimer
-                    </button>
-                  </>
+                  <button onClick={(e) => { e.stopPropagation(); navigate(`/edit-cagnotte/${c.id}`); }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: colors.primary }} >
+                    Modifier
+                  </button>
                 )}
-                {c.status === 'closed' && (
-                  <span className="px-4 py-2 bg-red-600 text-white rounded-md font-semibold">
-                    Cagnotte fermée
-                  </span>
-                )}
+                <button onClick={async (e) => {
+                  e.stopPropagation();
+                  const isActive = c.status !== 'closed';
+                  const confirmMessage = isActive
+                    ? `⚠️ ATTENTION: Cette cagnotte est active et contient des contributions. Êtes-vous sûr de vouloir la supprimer définitivement ? Toutes les contributions seront perdues !`
+                    : `Êtes-vous sûr de vouloir supprimer définitivement la cagnotte "${c.title}" et toutes ses contributions ? Cette action est irréversible.`;
+                  if (!window.confirm(confirmMessage)) return;
+                  try {
+                    // Appel API pour supprimer la cagnotte
+                    await api.delete(`/pulls/${c.id}`);
+                    // Supprimer du store local
+                    deleteCagnotte(c.id);
+                    notify(`Cagnotte "${c.title}" supprimée avec succès`, 'success');
+                    // Pas besoin de redirection car on est déjà sur le dashboard
+                  } catch (error) {
+                    console.error('Erreur lors de la suppression:', error);
+                    notify('Erreur lors de la suppression. Vérifiez que vous êtes le propriétaire.', 'error');
+                  }
+                }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: "#EF4444" }} >
+                  Supprimer
+                </button>
               </div>
             </div>
           );
@@ -551,10 +548,10 @@ const Dashboard = () => {
               <h3 className="font-semibold mb-2">{c.title}</h3>
               {/* Aperçu contributeurs */}
               <div className="flex flex-col gap-1 mb-2">
-                {previewContributors.map(contrib => {
+                {previewContributors.map((contrib, idx) => {
                   const isAnonymous = !contrib.userId || !contrib.contributor;
                   return (
-                    <div key={contrib.id} className="flex justify-between items-center px-2 py-1 rounded text-sm" style={{ backgroundColor: "#f3f4f6" }} title={isAnonymous ? "Anonyme" : contrib.contributor?.name || "Contributeur"} >
+                    <div key={idx} className="flex justify-between items-center px-2 py-1 rounded text-sm" style={{ backgroundColor: "#f3f4f6" }} title={isAnonymous ? "Anonyme" : contrib.contributor?.name || "Contributeur"} >
                       <span className="truncate">{isAnonymous ? "Anonyme" : contrib.contributor?.name || "Contributeur"}</span>
                       <span className="font-semibold">{(parseFloat(contrib.amount) || 0).toLocaleString()} {contrib.currency}</span>
                     </div>
@@ -587,8 +584,8 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {contributions.map(c => (
-                <tr key={c.id} className="hover:bg-gray-50 transition">
+              {contributions.map((c, index) => (
+                <tr key={index} className="hover:bg-gray-50 transition">
                   <td className="px-4 py-3 text-gray-800 font-semibold truncate max-w-xs">{c.cagnotteTitle}</td>
                   <td className="px-6 py-3 text-gray-500">{new Date(c.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-center text-gray-800 font-bold w-28">
