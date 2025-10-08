@@ -148,7 +148,7 @@ const ProfilePage = () => {
 
   // Fonction pour gérer l'édition des informations utilisateur
   const handleEdit = (field, value) => {
-    if (field !== "email") { // Empêche l'édition de l'email
+    if (field === "name") { // Permet seulement l'édition du nom
       setEditField(field);
       setEditValue(value);
       setIsEditing(true);
@@ -308,38 +308,8 @@ const ProfilePage = () => {
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm font-medium text-gray-600">Téléphone</label>
-                <button
-                  onClick={() => handleEdit('phone', userData.phone)}
-                  className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
-                >
-                  <FiEdit className="mr-1" /> Modifier
-                </button>
               </div>
-
-              {isEditing && editField === 'phone' ? (
-                <div className="flex space-x-2">
-                  <input
-                    type="tel"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    className="flex-1 p-2 border rounded-md"
-                  />
-                  <button
-                    onClick={handleSave}
-                    className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                  >
-                    Sauvegarder
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                  >
-                    Annuler
-                  </button>
-                </div>
-              ) : (
-                <p className="text-gray-800">{userData.phone}</p>
-              )}
+              <p className="text-gray-800">{userData.phone}</p>
             </div>
 
             {/* Modifier le mot de passe */}
@@ -347,37 +317,13 @@ const ProfilePage = () => {
               <div className="flex justify-between items-center mb-2">
                 <label className="text-sm font-medium text-gray-600">Mot de passe</label>
                 <button
-                  onClick={() => handleEdit('password', '')}
+                  onClick={() => navigate("/reset-password")}
                   className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center"
                 >
                   <FiLock className="mr-1" /> Modifier
                 </button>
               </div>
-              {isEditing && editField === 'password' ? (
-                <div className="flex space-x-2">
-                  <input
-                    type="password"
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    className="flex-1 p-2 border rounded-md"
-                    placeholder="Nouveau mot de passe"
-                  />
-                  <button
-                    onClick={handleSave}
-                    className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                  >
-                    Sauvegarder
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                  >
-                    Annuler
-                  </button>
-                </div>
-              ) : (
-                <p className="text-gray-800">•••••••••••</p>
-              )}
+              <p className="text-gray-800">•••••••••••</p>
             </div>
 
             {/* Notifications */}
