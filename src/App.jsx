@@ -107,11 +107,7 @@ export default function App() {
           <ProfilPage />
         </AuthGuard>
       } />
-      <Route path="/contribute/:id" element={
-        <AuthGuard requireAuth={true}>
-          <ContributePage />
-        </AuthGuard>
-      } />
+      <Route path="/contribute/:id" element={<ContributePage />} />
       <Route path="/contributors/:id" element={
         <AuthGuard requireAuth={true}>
           <ContributorsPage />

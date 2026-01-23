@@ -111,17 +111,57 @@ const ContributePage = () => {
     try {
       const method = paymentMethod === "mobile" ? mobileOption : "card";
 
-      const contributionData = {
-        pullId: id,
-        amount: payload.amount,
-        phoneNumber: payload.phoneNumber,
-        paymentMethod: method,
-        message: payload.message,
-        isAnonymous: payload.anonymous
-      };
+      if (isGuest) {
+        // Pour les invités, utiliser l'endpoint public anonyme
+        console.log("🎭 Contribution anonyme pour invité:", payload);
 
-      console.log("Initiation paiement avec PaymentService:", contributionData);
-      return await paymentService.initiateContribution(contributionData);
+        const anonymousData = {
+          amount: payload.amount,
+          contributorName: payload.guestName,
+          contributorEmail: payload.guestEmail,
+          message: payload.message,
+          phoneNumber: payload.phoneNumber,
+          paymentMethod: method,
+          mobileOption: paymentMethod === "mobile" ? mobileOption : undefined
+        };
+
+        // Utiliser fetch directement pour l'endpoint public
+        const response = await fetch(`http://localhost:5000/api/v1/public/contributions/anonymous/${id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(anonymousData)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        return {
+          success: true,
+          contribution: result.contribution,
+          payment: result.payment,
+          message: result.message
+        };
+      } else {
+        // Pour les utilisateurs connectés, utiliser l'endpoint authentifié
+        const contributionData = {
+          pullId: id,
+          amount: payload.amount,
+          phoneNumber: payload.phoneNumber,
+          paymentMethod: method,
+          message: payload.message,
+          isAnonymous: payload.anonymous,
+          contributorName: payload.anonymous ? undefined : undefined, // Pour utilisateurs connectés, le nom vient du token
+          contributorEmail: payload.anonymous ? undefined : undefined
+        };
+
+        console.log("👤 Contribution authentifiée:", contributionData);
+        return await paymentService.initiateContribution(contributionData);
+      }
     } catch (err) {
       console.error("Erreur contribution:", err);
       throw err;
@@ -206,6 +246,12 @@ const ContributePage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+
+    // Vérifier que les invités ne peuvent contribuer qu'aux cagnottes publiques
+    if (isGuest && cagnotte.type === 'private') {
+      setSubmitError("Les contributions anonymes ne sont autorisées que pour les cagnottes publiques.");
+      return;
+    }
 
     const newContribution = { cagnotteId: cagnotte.id, userId: anonymous ? null : 1, amount: Number(amount), anonymous, message };
 
