@@ -58,17 +58,15 @@ export const Register = () => {
   };
 
   const validateStep = () => {
+    console.log('🔍 validateStep called for step:', step);
     const newErrors = {};
     if (step === 1) {
+      console.log('📝 Step 1 validation - form:', { nom: form.nom, prenom: form.prenom, email: form.email, phone: form.phone, password: form.password });
       if (!form.nom.trim()) newErrors.nom = "Le nom est obligatoire.";
       if (!form.prenom.trim()) newErrors.prenom = "Le prénom est obligatoire.";
       if (!form.email.trim() && !form.phone.trim()) {
         newErrors.email = "Au moins un email ou numéro de téléphone est requis.";
         newErrors.phone = "Au moins un email ou numéro de téléphone est requis.";
-      }
-      // Validation supplémentaire : si email fourni, mot de passe requis
-      if (form.email.trim() && !form.password) {
-        newErrors.password = "Un mot de passe est requis pour l'inscription par email.";
       }
     } else if (step === 2) {
       if (!form.password) newErrors.password = "Le mot de passe est obligatoire.";
@@ -77,13 +75,20 @@ export const Register = () => {
         newErrors.confirmPassword = "Les mots de passe ne correspondent pas.";
       }
     }
+    console.log('❌ Validation errors:', newErrors);
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    console.log('✅ Validation result:', isValid);
+    return isValid;
   };
 
   const nextStep = () => {
+    console.log('➡️ nextStep called, current step:', step);
     if (validateStep()) {
+      console.log('✅ Validation passed, advancing to step:', step + 1);
       setStep(step + 1);
+    } else {
+      console.log('❌ Validation failed, staying on step:', step);
     }
   };
   

@@ -7,7 +7,8 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   onAuthStateChanged,
-  fetchSignInMethodsForEmail
+  fetchSignInMethodsForEmail,
+  EmailAuthProvider
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { updateUserPhone } from './api';
@@ -235,37 +236,21 @@ async registerWithEmail(email, password, displayName, phoneNumber = null) {
       );
     }
 
-    // Utiliser signInWithCredential au lieu de createUserWithEmailAndPassword
-    // pour une meilleure gestion des liens
-    const credential = EmailAuthProvider.credential(email.trim(), password);
+    // Créer directement le nouveau compte
+    const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    const user = userCredential.user;
+
+    if (displayName) {
+      await updateProfile(user, { displayName });
+    }
 
     try {
-      // Essayer d'abord de se connecter (au cas où le compte existe)
-      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
-      console.log('🔄 Compte existant détecté, connexion réussie');
-      return { user: userCredential.user, phoneNumber, wasExisting: true };
-    } catch (signInError) {
-      // Si la connexion échoue, c'est probablement un nouveau compte
-      if (signInError.code === 'auth/user-not-found') {
-        // Créer le nouveau compte
-        const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        const user = userCredential.user;
-
-        if (displayName) {
-          await updateProfile(user, { displayName });
-        }
-
-        try {
-          await sendEmailVerification(user);
-        } catch (verificationError) {
-          console.warn('⚠️ Erreur email vérification:', verificationError.message);
-        }
-
-        return { user, phoneNumber, wasExisting: false };
-      } else {
-        throw signInError;
-      }
+      await sendEmailVerification(user);
+    } catch (verificationError) {
+      console.warn('⚠️ Erreur email vérification:', verificationError.message);
     }
+
+    return { user, phoneNumber, wasExisting: false };
   } catch (error) {
     throw this.formatFirebaseError(error);
   }
