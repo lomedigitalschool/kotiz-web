@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
+import SkeletonLoader from "../components/SkeletonLoader";
 
 const WithdrawPage = () => {
     const { id } = useParams();
@@ -125,8 +126,8 @@ const WithdrawPage = () => {
         );
     }
     
-    if (!cagnotte) return <p className="text-center mt-10">Chargement de la cagnotte...</p>;
-    if (kycLoading) return <p className="text-center mt-[80px] text-gray-500">Vérification KYC...</p>;
+    if (!cagnotte) return <SkeletonLoader type="default" />;
+    if (kycLoading) return <SkeletonLoader type="default" />;
 
     const isClosed = cagnotte.status === 'closed';
     const hasApprovedKyc = kycStatus && kycStatus.statutVerification === 'APPROUVE';

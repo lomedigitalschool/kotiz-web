@@ -4,12 +4,15 @@ import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import PhoneInput from "../components/PhoneInput";
 import paymentService from "../services/paymentService";
+import { useNotification } from "../contexts/NotificationContext";
+import SkeletonLoader from "../components/SkeletonLoader";
 
 
 const ContributePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addContribution, fetchAllCagnottes, fetchUserContributions } = useCagnotteStore();
+  const { notify } = useNotification();
 
   const [cagnotte, setCagnotte] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -73,7 +76,7 @@ const ContributePage = () => {
     fetchCagnotteData();
   }, [id]);
 
-  if (loading) return <p style={{ marginTop: "5rem", textAlign: "center", color: "#6b7280" }}>Chargement...</p>;
+  if (loading) return <SkeletonLoader type="default" />;
   if (error) return <p style={{ marginTop: "5rem", textAlign: "center", color: "#dc2626" }}>{error}</p>;
   if (!cagnotte) return null;
 
@@ -309,6 +312,9 @@ const ContributePage = () => {
             // Fallback si l'onglet a été fermé
             window.open(serverResp.payment.paymentUrl, '_blank');
           }
+
+          // Afficher notification de succès
+          notify('Contribution initiée avec succès !', 'success');
 
           // Rediriger vers la page de statut après un court délai
           setTimeout(() => {

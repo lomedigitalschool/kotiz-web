@@ -1,14 +1,17 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { FiSettings, FiBell, FiShield, FiHelpCircle, FiHome, FiGrid, FiLogOut, FiEdit, FiLock, FiPhone } from "react-icons/fi";
 import { useNavigate } from "react-router-dom"; // Importation du hook pour la navigation
 import api from "../services/api";
 import { useCagnotteStore } from "../stores/cagnotteStore";
 import { logout } from "../services/auth";
+import { useAuth } from "../contexts/AuthContext";
+import SkeletonLoader from "../components/SkeletonLoader";
 
 // Composant principal pour la page de profil utilisateur
 const ProfilePage = () => {
   const navigate = useNavigate(); // Hook pour naviguer entre les pages
   const { cagnottes, contributions, reset } = useCagnotteStore();
+  const { user: authUser } = useAuth(); // Utiliser les données utilisateur du contexte
   const accountRef = useRef(null);
 
   // Gestion des états locaux pour les onglets actifs et les données utilisateur
@@ -29,35 +32,34 @@ const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false); // État d'édition
   const [editField, setEditField] = useState(""); // Champ en cours d'édition
   const [editValue, setEditValue] = useState(""); // Nouvelle valeur pour le champ édité
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // Confirmation de déconnexion
 
-  // Récupération des données utilisateur depuis l'API
+  // Récupération des données utilisateur depuis le contexte Auth et API pour KYC
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
 
         // Vérifier si l'utilisateur est connecté
-        const token = localStorage.getItem('token');
-        if (!token) {
+        if (!authUser) {
           setError('Vous devez être connecté pour accéder à votre profil');
           setLoading(false);
           return;
         }
 
-        const response = await api.get('/auth/me');
-        const user = response.data;
-
+        // Utiliser les données du contexte Auth au lieu de refaire un appel API
+        const dbProfile = authUser.dbProfile || {};
         setUserData({
-          id: user.id,
-          name: user.name || "Utilisateur",
-          email: user.email || "",
-          phone: user.phone || "",
+          id: authUser.id || dbProfile.id,
+          name: dbProfile.name || authUser.displayName || "Utilisateur",
+          email: dbProfile.email || authUser.email || "",
+          phone: dbProfile.phone || "",
           notifications: true, // Par défaut activé
-          memberSince: user.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear(),
+          memberSince: dbProfile.createdAt ? new Date(dbProfile.createdAt).getFullYear() : new Date().getFullYear(),
           location: "Non spécifiée" // À implémenter plus tard si nécessaire
         });
 
-        // Récupérer le statut KYC
+        // Récupérer le statut KYC en parallèle
         try {
           const kycResponse = await api.get('/kyc/status');
           setKycStatus(kycResponse.data.data);
@@ -69,11 +71,7 @@ const ProfilePage = () => {
         setError(null);
       } catch (err) {
         console.error('Erreur lors du chargement du profil:', err);
-        if (err.response?.status === 401) {
-          setError('Session expirée. Veuillez vous reconnecter.');
-        } else {
-          setError('Erreur lors du chargement du profil utilisateur');
-        }
+        setError('Erreur lors du chargement du profil utilisateur');
         // Données par défaut en cas d'erreur
         setUserData({
           name: "Utilisateur",
@@ -89,32 +87,32 @@ const ProfilePage = () => {
     };
 
     fetchUserData();
-  }, []);
+  }, [authUser]);
 
-  // Calcul des projets créés et soutenus depuis les données du store
-  const projetsCrees = cagnottes.filter(c => c.userId === userData?.id) || [];
-  const projetsSoutenus = contributions.map(contrib => {
-    const cagnotte = cagnottes.find(c => c.id === contrib.cagnotteId);
-    return cagnotte ? {
-      id: cagnotte.id,
-      category: cagnotte.type === 'public' ? 'Publique' : 'Privée',
-      title: cagnotte.title,
-      description: cagnotte.description,
-      amount: contrib.amount,
-      currency: contrib.currency
-    } : null;
-  }).filter(Boolean);
+  // Calcul des projets créés et soutenus depuis les données du store (mémoïsé pour performance)
+  const projetsCrees = useMemo(() =>
+    cagnottes.filter(c => c.userId === userData?.id) || [],
+    [cagnottes, userData?.id]
+  );
+
+  const projetsSoutenus = useMemo(() =>
+    contributions.map(contrib => {
+      const cagnotte = cagnottes.find(c => c.id === contrib.cagnotteId);
+      return cagnotte ? {
+        id: cagnotte.id,
+        category: cagnotte.type === 'public' ? 'Publique' : 'Privée',
+        title: cagnotte.title,
+        description: cagnotte.description,
+        amount: contrib.amount,
+        currency: contrib.currency
+      } : null;
+    }).filter(Boolean),
+    [contributions, cagnottes]
+  );
 
   // Gestion du chargement et des erreurs
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement du profil...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonLoader type="default" />;
   }
 
   if (error) {
@@ -230,20 +228,7 @@ const ProfilePage = () => {
 
               <button
                 className="w-full flex items-center space-x-2 p-3 rounded-lg text-red-600 hover:bg-red-50 transition mt-4"
-                onClick={async () => {
-                  if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-                    try {
-                      await logout(); // Déconnexion Firebase
-                      reset(); // Nettoie complètement le store et localStorage
-                      navigate('/login');
-                    } catch (error) {
-                      console.error('Erreur lors de la déconnexion:', error);
-                      // Même en cas d'erreur, on nettoie et redirige
-                      reset();
-                      navigate('/login');
-                    }
-                  }
-                }}
+                onClick={() => setShowLogoutConfirm(true)}
               >
                 <FiLogOut className="text-red-500" />
                 <span>Déconnexion</span>
@@ -552,6 +537,46 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmation de déconnexion */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Confirmation de déconnexion
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Êtes-vous sûr de vouloir vous déconnecter ?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Annuler
+              </button>
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                onClick={async () => {
+                  setShowLogoutConfirm(false);
+                  try {
+                    await logout(); // Déconnexion Firebase
+                    reset(); // Nettoie complètement le store et localStorage
+                    navigate('/login');
+                  } catch (error) {
+                    console.error('Erreur lors de la déconnexion:', error);
+                    // Même en cas d'erreur, on nettoie et redirige
+                    reset();
+                    navigate('/login');
+                  }
+                }}
+              >
+                Se déconnecter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

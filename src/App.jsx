@@ -7,7 +7,6 @@ import ProfilPage from "./pages/profilPage";
 import ExplorePage from "./pages/explorePage";
 import CagnotteDetails from "./pages/CagnotteDetails";
 import ContributorsPage from "./pages/ContributorsPage";
-import { Routes, Route, Navigate } from "react-router-dom";
 import ContributePage from "./pages/ContributePage";
 import Dashboard from "./pages/Dashboard";
 import EditCagnotte from "./pages/EditCagnotte";
@@ -19,10 +18,12 @@ import KycForm from "./pages/KycForm";
 import Transactions from "./pages/Transactions";
 import ReceiptPage from "./pages/ReceiptPage";
 import PaymentStatusPage from "./pages/PaymentStatusPage";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Breadcrumb from "./components/Breadcrumb";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import SkeletonLoader from "./components/SkeletonLoader";
 import WithdrawPage from './pages/WithdrawPage';
 
 
@@ -58,15 +59,7 @@ export default function App() {
 
   // Afficher un écran de chargement pendant la vérification Firebase
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Vérification de l'authentification...</p>
-          <p className="text-sm text-gray-500 mt-2">Ne fermez pas cette page</p>
-        </div>
-      </div>
-    );
+    return <SkeletonLoader type="auth" />;
   }
 
   console.log('🔄 État d\'authentification déterminé:', isAuthenticated ? 'Connecté' : 'Non connecté');
@@ -158,7 +151,7 @@ export default function App() {
 
 
 
-    </Routes>
+        </Routes>
     </NotificationProvider>
   );
 }

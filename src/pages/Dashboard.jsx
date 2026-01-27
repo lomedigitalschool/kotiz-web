@@ -7,6 +7,7 @@ import { FaUser, FaCog, FaSearch, FaIdCard, FaBell, FaSignOutAlt, FaWallet } fro
 import { FiShield } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
 import EmailVerificationBanner from "../components/EmailVerificationBanner";
+import SkeletonLoader from "../components/SkeletonLoader";
 import api from "../services/api";
 import logoHorizontale from "../assets/logos/logo_horizontale.png";
 import { useSilentRefresh } from "../hooks/useSilentRefresh";
@@ -20,6 +21,7 @@ const Dashboard = () => {
   const [userStats, setUserStats] = useState({ totalCollected: 0, activeCount: 0, totalContributors: 0, averageDonation: 0 });
   const [kycStatus, setKycStatus] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, title, isActive }
   const [cagnotteContributions, setCagnotteContributions] = useState({});
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false); // Nouveau flag pour s'assurer que les vraies données sont chargées
@@ -233,12 +235,7 @@ const Dashboard = () => {
 
   // Attendre que les vraies données soient chargées avant d'afficher quoi que ce soit
   if (dashboardLoading || loading || !dataLoaded) {
-    return (
-      <div style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p>Chargement de vos données...</p>
-      </div>
-    );
+    return <SkeletonLoader type="dashboard" />;
   }
   if (error) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#dc2626" }}>{error}</p>;
 
@@ -303,6 +300,47 @@ const Dashboard = () => {
           </button>
         </div>
       </header>
+
+      {/* Modal de confirmation de suppression */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Confirmation de suppression
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {deleteConfirm.isActive
+                ? `⚠️ ATTENTION: Cette cagnotte est active et contient des contributions. Êtes-vous sûr de vouloir la supprimer définitivement ? Toutes les contributions seront perdues !`
+                : `Êtes-vous sûr de vouloir supprimer définitivement la cagnotte "${deleteConfirm.title}" et toutes ses contributions ? Cette action est irréversible.`
+              }
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition"
+                onClick={() => setDeleteConfirm(null)}
+              >
+                Annuler
+              </button>
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                onClick={async () => {
+                  try {
+                    await api.delete(`/pulls/${deleteConfirm.id}`);
+                    deleteCagnotte(deleteConfirm.id);
+                    notify(`Cagnotte "${deleteConfirm.title}" supprimée avec succès`, 'success');
+                    setDeleteConfirm(null);
+                  } catch (error) {
+                    console.error('Erreur lors de la suppression:', error);
+                    notify('Erreur lors de la suppression de la cagnotte', 'error');
+                  }
+                }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pop-up de confirmation de déconnexion */}
       {showLogoutConfirm && (
@@ -509,24 +547,10 @@ const Dashboard = () => {
                     Modifier
                   </button>
                 )}
-                <button onClick={async (e) => {
+                <button onClick={(e) => {
                   e.stopPropagation();
                   const isActive = c.status !== 'closed';
-                  const confirmMessage = isActive
-                    ? `⚠️ ATTENTION: Cette cagnotte est active et contient des contributions. Êtes-vous sûr de vouloir la supprimer définitivement ? Toutes les contributions seront perdues !`
-                    : `Êtes-vous sûr de vouloir supprimer définitivement la cagnotte "${c.title}" et toutes ses contributions ? Cette action est irréversible.`;
-                  if (!window.confirm(confirmMessage)) return;
-                  try {
-                    // Appel API pour supprimer la cagnotte
-                    await api.delete(`/pulls/${c.id}`);
-                    // Supprimer du store local
-                    deleteCagnotte(c.id);
-                    notify(`Cagnotte "${c.title}" supprimée avec succès`, 'success');
-                    // Pas besoin de redirection car on est déjà sur le dashboard
-                  } catch (error) {
-                    console.error('Erreur lors de la suppression:', error);
-                    notify('Erreur lors de la suppression. Vérifiez que vous êtes le propriétaire.', 'error');
-                  }
+                  setDeleteConfirm({ id: c.id, title: c.title, isActive });
                 }} className="px-4 py-2 rounded-md text-white hover:opacity-90 transition" style={{ backgroundColor: "#EF4444" }} >
                   Supprimer
                 </button>

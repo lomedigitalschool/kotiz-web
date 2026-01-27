@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/Button";
 import { FaHome, FaUser, FaTachometerAlt, FaSignOutAlt, FaCog, FaLock, FaGlobe } from "react-icons/fa";
 import logoHorizontale from "../assets/logos/logo_horizontale.png";
+import SkeletonLoader from "../components/SkeletonLoader";
 
 
 export default function ExplorerPage() {
@@ -246,7 +247,7 @@ export default function ExplorerPage() {
       </div>
 
       {/*loader */}
-      {loading && <p className="text-center mt-4">Chargement des cagnottes...</p>}
+      {loading && <SkeletonLoader type="default" />}
 
       {/* aucun resultat*/}
       {!loading && filteredCagnottes.length === 0 && (

@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import api from "../services/api";
 import { CSVLink } from "react-csv";
 import { FaArrowLeft, FaDownload, FaFilter } from "react-icons/fa";
+import SkeletonLoader from "../components/SkeletonLoader";
 
 const Transactions = () => {
   const navigate = useNavigate();
@@ -114,16 +115,7 @@ const Transactions = () => {
   }));
 
   if (loading) {
-    return (
-      <div className="p-6 mx-auto" style={{ maxWidth: "900px", fontFamily: "Roboto, sans-serif" }}>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Chargement des transactions...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <SkeletonLoader type="default" />;
   }
 
   return (

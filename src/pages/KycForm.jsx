@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import logoHorizontale from "../assets/logos/logo_horizontale.png";
 import { useNotification } from "../contexts/NotificationContext";
+import DatePicker from "../components/DatePicker";
 
 export default function KycFormForm() {
     const navigate = useNavigate();
@@ -12,12 +13,12 @@ export default function KycFormForm() {
     // On stocke toutes les informations du formulaire ici
     const [formData, setFormData] = useState({
         nomLegal: "",
-        dateNaissance: "",
+        dateNaissance: null,
         adresse: "",
         nationalite: "",
         typePiece: "CNI",
         numeroPiece: "",
-        dateExpiration: "",
+        dateExpiration: null,
         photoRecto: null,
         photoVerso: null,
     });
@@ -35,8 +36,13 @@ export default function KycFormForm() {
         } else if (files) {
             setFormData((prev) => ({ ...prev, [name]: files[0] })); // fichier upload
         } else {
-            setFormData((prev) => ({ ...prev, [name]: value })); // champ texte/date/select
+            setFormData((prev) => ({ ...prev, [name]: value })); // champ texte/select
         }
+    };
+
+    // Fonction pour gérer les changements de date
+    const handleDateChange = (name, date) => {
+        setFormData((prev) => ({ ...prev, [name]: date }));
     };
 
     // Fonction qui envoie le formulaire à l'API
@@ -55,7 +61,13 @@ export default function KycFormForm() {
             // Préparer les données à envoyer, y compris les fichiers
             const data = new FormData();
             for (const key in formData) {
-                if (formData[key]) data.append(key, formData[key]);
+                if (formData[key]) {
+                    if (formData[key] instanceof Date) {
+                        data.append(key, formData[key].toISOString().split('T')[0]); // Format YYYY-MM-DD
+                    } else {
+                        data.append(key, formData[key]);
+                    }
+                }
             }
 
             // Appel réel à l'API
@@ -141,11 +153,10 @@ export default function KycFormForm() {
                         {/* Date de naissance */}
                         <div>
                             <label className="block font-semibold mb-2 text-gray-800">Date de naissance</label>
-                            <input
-                                type="date"
-                                name="dateNaissance"
-                                className="w-full border p-3 rounded-xl placeholder-gray-700 bg-[#4CA26033] focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-                                onChange={handleChange}
+                            <DatePicker
+                                selected={formData.dateNaissance}
+                                onChange={(date) => handleDateChange('dateNaissance', date)}
+                                maxDate={new Date()}
                                 required
                             />
                         </div>
@@ -206,11 +217,10 @@ export default function KycFormForm() {
                         {/* Date d'expiration */}
                         <div>
                             <label className="block font-semibold mb-2 text-gray-800">Date d'expiration</label>
-                            <input
-                                type="date"
-                                name="dateExpiration"
-                                className="w-full border p-3 rounded-xl placeholder-gray-700 bg-[#4CA26033] focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-                                onChange={handleChange}
+                            <DatePicker
+                                selected={formData.dateExpiration}
+                                onChange={(date) => handleDateChange('dateExpiration', date)}
+                                minDate={new Date()}
                                 required
                             />
                         </div>
@@ -263,12 +273,12 @@ export default function KycFormForm() {
                                 onClick={() => {
                                     setFormData({
                                         nomLegal: "",
-                                        dateNaissance: "",
+                                        dateNaissance: null,
                                         adresse: "",
                                         nationalite: "",
                                         typePiece: "CNI",
                                         numeroPiece: "",
-                                        dateExpiration: "",
+                                        dateExpiration: null,
                                         photoRecto: null,
                                         photoVerso: null,
                                     });

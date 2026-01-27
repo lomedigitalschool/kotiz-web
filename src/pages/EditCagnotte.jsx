@@ -5,6 +5,7 @@ import { colors } from "../theme/colors";
 import { useAuth } from "../contexts/AuthContext";
 import { auth } from "../config/firebase";
 import api from "../services/api";
+import DatePicker from "../components/DatePicker";
 
 const EditCagnotte = () => {
   const { id } = useParams();
@@ -25,6 +26,7 @@ const EditCagnotte = () => {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Charger la cagnotte et vérifier la propriété
   useEffect(() => {
@@ -60,9 +62,7 @@ const EditCagnotte = () => {
             goalAmount: loadedCagnotte.goalAmount || "",
             status: loadedCagnotte.status || "active",
             type: loadedCagnotte.type || "public",
-            deadline: loadedCagnotte.deadline
-              ? new Date(loadedCagnotte.deadline).toISOString().split("T")[0]
-              : "",
+            deadline: loadedCagnotte.deadline ? new Date(loadedCagnotte.deadline) : null,
             currency: loadedCagnotte.currency || "FCFA",
           };
           console.log('Données du formulaire initialisées depuis l\'API:', formDataToSet);
@@ -94,9 +94,7 @@ const EditCagnotte = () => {
         goalAmount: cagnotte.goalAmount || "",
         status: cagnotte.status || "active",
         type: cagnotte.type || "public",
-        deadline: cagnotte.deadline
-          ? new Date(cagnotte.deadline).toISOString().split("T")[0]
-          : "",
+        deadline: cagnotte.deadline ? new Date(cagnotte.deadline) : null,
         currency: cagnotte.currency || "FCFA",
       };
       console.log('Données du formulaire initialisées depuis le store:', formDataToSet);
@@ -117,7 +115,7 @@ const EditCagnotte = () => {
     if (!formData.description.trim()) return setErrorMsg("Description obligatoire") || false;
     if (!formData.goalAmount || Number(formData.goalAmount) <= 0) return setErrorMsg("Montant > 0") || false;
     if (!formData.deadline) return setErrorMsg("Date limite obligatoire") || false;
-    if (formData.deadline <= today) return setErrorMsg("La date limite doit être future") || false;
+    if (formData.deadline <= new Date()) return setErrorMsg("La date limite doit être future") || false;
 
     return true;
   };
@@ -137,7 +135,7 @@ const EditCagnotte = () => {
         description: formData.description,
         goalAmount: parseFloat(formData.goalAmount),
         currency: formData.currency,
-        deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null,
+        deadline: formData.deadline ? formData.deadline.toISOString() : null,
         type: formData.type,
         status: formData.status
       };
@@ -267,14 +265,11 @@ const EditCagnotte = () => {
           </div>
           <div>
             <label className="block text-gray-700 font-medium mb-1">Date limite</label>
-            <input
-              type="date"
-              name="deadline"
-              value={formData.deadline}
-              onChange={handleChange}
-              className="w-full border rounded-md px-3 py-2"
+            <DatePicker
+              selected={formData.deadline}
+              onChange={(date) => setFormData(prev => ({ ...prev, deadline: date }))}
+              minDate={new Date()}
               required
-              min={new Date().toISOString().split("T")[0]}
             />
           </div>
         </div>
@@ -312,18 +307,7 @@ const EditCagnotte = () => {
         <div className="flex justify-between mt-4">
           <button
             type="button"
-            onClick={async () => {
-              if (!window.confirm(`Supprimer définitivement la cagnotte "${formData.title}" ?`)) return;
-              
-              try {
-                await api.delete(`/pulls/${id}`);
-                alert('Cagnotte supprimée avec succès');
-                navigate('/dashboard');
-              } catch (error) {
-                console.error('Erreur lors de la suppression:', error);
-                alert('Erreur lors de la suppression. Vérifiez vos autorisations.');
-              }
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
             className="px-6 py-2 rounded-md text-white hover:opacity-90 transition"
             style={{ backgroundColor: "#DC2626" }}
             disabled={loading}
@@ -352,6 +336,43 @@ const EditCagnotte = () => {
           </div>
         </div>
       </form>
+
+      {/* Modal de confirmation de suppression */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Confirmation de suppression
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Êtes-vous sûr de vouloir supprimer définitivement la cagnotte "{formData.title}" ?
+              Cette action est irréversible.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Annuler
+              </button>
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                onClick={async () => {
+                  setShowDeleteConfirm(false);
+                  try {
+                    await api.delete(`/pulls/${id}`);
+                    navigate('/dashboard');
+                  } catch (error) {
+                    console.error('Erreur lors de la suppression:', error);
+                  }
+                }}
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

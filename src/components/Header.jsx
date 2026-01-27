@@ -102,7 +102,7 @@ const Header = ({ scrollToFeatures, scrollToHowItWorks, showAuthButtons = false 
 
       {/* Boutons d'authentification / Profil */}
       <div className="hidden md:flex items-center gap-4">
-        {showAuthButtons || !(isAuthenticated && user) ? (
+        {!(isAuthenticated && user) && showAuthButtons ? (
           <>
             <Button
               onClick={() => navigate("/login")}

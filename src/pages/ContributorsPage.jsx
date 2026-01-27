@@ -4,6 +4,7 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { FaArrowLeft } from "react-icons/fa";
 import io from "socket.io-client";
+import SkeletonLoader from "../components/SkeletonLoader";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -65,7 +66,7 @@ const ContributorsPage = () => {
     };
   }, [id]);
 
-  if (loading)  return <p style={{ textAlign: "center", marginTop: "5rem", color: "#6b7280" }}> Chargement...</p> ;
+  if (loading) return <SkeletonLoader type="default" />;
   if (error) return <p style={{ textAlign: "center", marginTop: "5rem", color: "#dc2626" }}>{error}</p>;
   if (!cagnotte) {
     return (

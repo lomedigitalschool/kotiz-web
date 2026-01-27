@@ -8,10 +8,12 @@ import { useNavigate } from "react-router-dom";
 import { FaHome, FaSearch, FaUser } from "react-icons/fa";
 import DatePicker from "../components/DatePicker";
 import logoHorizontale from "../assets/logos/logo_horizontale.png";
+import { useNotification } from "../contexts/NotificationContext";
 
 
 const CreerCagnotte = () => {
   const navigate = useNavigate();
+  const { notify } = useNotification();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     title: "",
@@ -66,16 +68,16 @@ const CreerCagnotte = () => {
 
       if (!allowedTypes.includes(file.type)) {
         if (file.type === 'image/avif') {
-          alert(`Format AVIF non supporté par notre service de stockage. Utilisez JPG, PNG, GIF, WEBP, SVG, BMP ou TIFF.`);
+          notify(`Format AVIF non supporté par notre service de stockage. Utilisez JPG, PNG, GIF, WEBP, SVG, BMP ou TIFF.`, 'error');
         } else {
-          alert(`Type de fichier non supporté: ${file.type}. Utilisez JPG, PNG, GIF, WEBP, SVG, BMP ou TIFF.`);
+          notify(`Type de fichier non supporté: ${file.type}. Utilisez JPG, PNG, GIF, WEBP, SVG, BMP ou TIFF.`, 'error');
         }
         e.target.value = ''; // Reset le champ file
         return;
       }
 
       if (file.size > maxSize) {
-        alert(`Fichier trop volumineux: ${(file.size / 1024 / 1024).toFixed(2)}MB. Taille maximale: 10MB.`);
+        notify(`Fichier trop volumineux: ${(file.size / 1024 / 1024).toFixed(2)}MB. Taille maximale: 10MB.`, 'error');
         e.target.value = ''; // Reset le champ file
         return;
       }
@@ -101,7 +103,7 @@ const CreerCagnotte = () => {
     // Vérifier si l'utilisateur est connecté
     const token = localStorage.getItem('token');
     if (!token) {
-      alert("Vous devez être connecté pour créer une cagnotte. Veuillez vous connecter d'abord.");
+      notify("Vous devez être connecté pour créer une cagnotte. Veuillez vous connecter d'abord.", 'error');
       setIsSubmitting(false);
       return;
     }
@@ -154,7 +156,7 @@ const CreerCagnotte = () => {
           console.warn('⚠️ Erreur lors du rafraîchissement:', refreshError);
         }
 
-        alert("🎉 Cagnotte créée avec succès !");
+        notify('Cagnotte créée avec succès !', 'success');
 
         // Reset formulaire
         setForm({

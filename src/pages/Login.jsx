@@ -9,10 +9,12 @@ import {
 import { auth } from "../config/firebase";
 import { FaArrowLeft, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useCagnotteStore } from "../stores/cagnotteStore";
+import { useNotification } from "../contexts/NotificationContext";
 
 export const Login = () => {
   const navigate = useNavigate();
   const { fetchAllCagnottes } = useCagnotteStore();
+  const { notify } = useNotification();
 
   // États du formulaire
   const [identifier, setIdentifier] = useState("");
@@ -228,6 +230,9 @@ export const Login = () => {
       // Recharger les données utilisateur
       console.log('🔄 Chargement des données utilisateur...');
       await fetchAllCagnottes();
+
+      // Afficher la notification de connexion réussie
+      notify('Connexion réussie ! Vous êtes maintenant connecté à votre compte.', 'success');
 
       // Rediriger vers le dashboard
       console.log('🚀 Redirection vers le dashboard...');

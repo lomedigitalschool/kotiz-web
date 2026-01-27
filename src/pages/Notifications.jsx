@@ -3,6 +3,7 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 import { colors } from "../theme/colors";
 import { FaBell, FaCheck, FaFilter } from "react-icons/fa";
 import { useSilentRefresh } from "../hooks/useSilentRefresh";
+import SkeletonLoader from "../components/SkeletonLoader";
 
 export default function NotificationsPage() {
   const { notifications, markAsRead, fetchNotifications, loading, error } = useCagnotteStore();
@@ -50,16 +51,7 @@ export default function NotificationsPage() {
   };
 
   if (loading && (!notifications || notifications.length === 0)) {
-    return (
-      <div className="pt-[calc(4rem+1rem)] p-6 mx-auto font-roboto" style={{ maxWidth: "1400px" }}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: colors.primary }}></div>
-            <p className="text-gray-500">Chargement des notifications...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <SkeletonLoader type="default" />;
   }
 
   if (error) {

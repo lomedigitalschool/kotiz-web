@@ -8,12 +8,15 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 import PhoneInput from "../components/PhoneInput";
 import PasswordInput from "../components/PasswordInput";
 import { updateUserPhone } from "../services/api";
+import { useNotification } from "../contexts/NotificationContext";
 
 export const Register = () => {
   const navigate = useNavigate();
   const { fetchAllCagnottes } = useCagnotteStore();
+  const { notify } = useNotification();
   const {
     registerWithEmail,
+    registerWithEmailAndPhone,
     registerWithPhone,
     verifyCode,
     isLoading,
@@ -143,7 +146,7 @@ export const Register = () => {
         useCagnotteStore.getState().reset();
         await fetchAllCagnottes();
 
-        alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
+        notify("🎉 Inscription réussie ! Bienvenue sur KOTIZ !", "success");
         navigate('/dashboard');
         return;
       }
@@ -178,7 +181,7 @@ export const Register = () => {
       useCagnotteStore.getState().reset();
       await fetchAllCagnottes();
 
-      alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
+      notify("🎉 Inscription réussie ! Bienvenue sur KOTIZ !", "success");
       navigate('/dashboard');
 
     } catch (error) {
@@ -192,13 +195,13 @@ export const Register = () => {
 
     // Validation des champs requis
     if (!form.nom || !form.prenom) {
-      alert("Le nom et le prénom sont requis");
+      notify("Le nom et le prénom sont requis", "error");
       return;
     }
 
     // Validation email ou téléphone (au moins un des deux)
     if (!form.email && !form.phone) {
-      alert("Veuillez fournir un email ou un numéro de téléphone.");
+      notify("Veuillez fournir un email ou un numéro de téléphone.", "error");
       return;
     }
 
@@ -215,23 +218,21 @@ export const Register = () => {
         console.log('🎯 Inscription unifiée: email + téléphone + mot de passe');
 
         if (form.password !== form.confirmPassword) {
-          alert("Les mots de passe ne correspondent pas");
+          notify("Les mots de passe ne correspondent pas", "error");
           return;
         }
 
         // Utiliser une nouvelle méthode d'inscription unifiée
         const result = await registerWithEmailAndPhone(form.email, form.password, displayName, form.phone);
 
-        // Obtenir le token Firebase
-        const idToken = await result.user.getIdToken();
-        localStorage.setItem('token', idToken);
+        // Le token est déjà stocké par authStore, marquer comme nouvel utilisateur
         localStorage.setItem('isNewUser', 'true');
 
         // Nettoyer et recharger
         useCagnotteStore.getState().reset();
         await fetchAllCagnottes();
 
-        alert("🎉 Inscription réussie ! Vous pouvez maintenant vous connecter avec votre email ou téléphone.");
+        notify("🎉 Inscription réussie ! Vous pouvez maintenant vous connecter avec votre email ou téléphone.", "success");
         navigate('/dashboard');
 
       } else if (hasEmail && hasPassword) {
@@ -239,7 +240,7 @@ export const Register = () => {
         console.log('📧 Inscription avec email:', form.email);
 
         if (form.password !== form.confirmPassword) {
-          alert("Les mots de passe ne correspondent pas");
+          notify("Les mots de passe ne correspondent pas", "error");
           return;
         }
 
@@ -263,7 +264,7 @@ export const Register = () => {
         useCagnotteStore.getState().reset();
         await fetchAllCagnottes();
 
-        alert("🎉 Inscription réussie ! Bienvenue sur KOTIZ !");
+        notify("🎉 Inscription réussie ! Bienvenue sur KOTIZ !", "success");
         navigate('/dashboard');
 
       } else if (hasPhone) {
@@ -290,15 +291,15 @@ export const Register = () => {
 
       // Messages d'erreur plus clairs
       if (errorMessage.includes("email-already-in-use")) {
-        alert("Cet email est déjà associé à un compte existant. Veuillez utiliser un email différent ou vous connecter.");
+        notify("Cet email est déjà associé à un compte existant. Veuillez utiliser un email différent ou vous connecter.", "error");
       } else if (errorMessage.includes("auth/missing-email")) {
-        alert("Erreur technique : email manquant. Veuillez réessayer.");
+        notify("Erreur technique : email manquant. Veuillez réessayer.", "error");
       } else if (errorMessage.includes("auth/invalid-email")) {
-        alert("Format d'email invalide. Veuillez vérifier votre email.");
+        notify("Format d'email invalide. Veuillez vérifier votre email.", "error");
       } else if (errorMessage.includes("auth/weak-password")) {
-        alert("Le mot de passe est trop faible. Utilisez au moins 6 caractères.");
+        notify("Le mot de passe est trop faible. Utilisez au moins 6 caractères.", "error");
       } else {
-        alert(errorMessage);
+        notify(errorMessage, "error");
       }
     }
   };

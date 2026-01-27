@@ -7,6 +7,7 @@ import { useCagnotteStore } from "../stores/cagnotteStore";
 import { useAuth } from "../hooks/useAuth";
 import { FaFacebook, FaWhatsapp, FaEnvelope } from "react-icons/fa";
 import { FiShare2 } from "react-icons/fi";
+import SkeletonLoader from "../components/SkeletonLoader";
 
 // Fonction utilitaire pour les appels API publics (sans authentification)
 const fetchPublic = async (endpoint) => {
@@ -55,62 +56,52 @@ const CagnotteDetails = () => {
         setLoading(true);
         console.log('Chargement de la cagnotte:', id, 'Refresh key:', refreshKey);
 
-        // Essayer d'abord l'endpoint public, puis l'endpoint authentifié si nécessaire
-        let response;
-        try {
-          // Tentative avec l'endpoint public d'abord (sans authentification)
-          const publicData = await fetchPublic(`/pulls/${id}`);
-          response = { data: publicData };
-          console.log('✅ Données récupérées via endpoint public');
-        } catch (publicError) {
-          console.log('❌ Endpoint public échoué, tentative avec authentification:', publicError.message);
-          // Si l'endpoint public échoue, essayer avec l'authentification
-          response = await api.get(`/pulls/${id}`);
-          console.log('✅ Données récupérées via endpoint authentifié');
-        }
-        
-        console.log('Cagnotte chargée:', response.data);
+        // Fonction helper pour essayer public puis authentifié
+        const fetchWithFallback = async (endpoint) => {
+          try {
+            const publicData = await fetchPublic(endpoint);
+            return { data: { data: publicData }, source: 'public' };
+          } catch (publicError) {
+            console.log(`❌ ${endpoint} public échoué, tentative avec auth:`, publicError.message);
+            const authData = await api.get(endpoint);
+            return { data: authData, source: 'auth' };
+          }
+        };
 
-        // Traiter les données reçues
-        const cagnotteData = response.data.data || response.data;
-        console.log('Données complètes de l\'API:', cagnotteData);
+        // Charger la cagnotte et les contributions en parallèle
+        const [cagnotteResult, contributionsResult] = await Promise.all([
+          fetchWithFallback(`/pulls/${id}`),
+          fetchWithFallback(`/pulls/${id}/contributions`).catch(() => ({ data: { data: [] }, source: 'none' })) // Fallback si contributions échoue
+        ]).catch(error => {
+          console.error('Erreur lors du chargement parallèle:', error);
+          throw error;
+        });
 
+        console.log('✅ Cagnotte récupérée via', cagnotteResult.source);
+        console.log('✅ Contributions récupérées via', contributionsResult.source);
+
+        // Traiter les données de la cagnotte
+        const cagnotteResponse = cagnotteResult.data.data || cagnotteResult.data;
+        const cagnotteData = cagnotteResponse.data || cagnotteResponse;
+        console.log('Données de la cagnotte:', cagnotteData);
         setCagnotte(cagnotteData);
 
-        // Si la cagnotte contient déjà les contributions, les utiliser
+        // Utiliser les contributions de la réponse de la cagnotte si disponibles, sinon celles de l'endpoint séparé
+        let finalContributions = [];
         if (cagnotteData.contributions && Array.isArray(cagnotteData.contributions)) {
-          console.log('✅ Contributions trouvées dans les données de la cagnotte:', cagnotteData.contributions);
-          setContributions(cagnotteData.contributions);
+          finalContributions = cagnotteData.contributions;
+          console.log('✅ Contributions trouvées dans les données de la cagnotte');
         } else if (cagnotteData.recentContributions && Array.isArray(cagnotteData.recentContributions)) {
-          console.log('✅ Contributions trouvées dans recentContributions:', cagnotteData.recentContributions);
-          setContributions(cagnotteData.recentContributions);
+          finalContributions = cagnotteData.recentContributions;
+          console.log('✅ Contributions trouvées dans recentContributions');
+        } else {
+          // Utiliser les contributions de l'endpoint séparé
+          const contribResponse = contributionsResult.data.data || contributionsResult.data;
+          finalContributions = contribResponse.data || contribResponse || [];
+          console.log('✅ Contributions chargées séparément');
         }
 
-        // Fetch contributions separately si pas déjà incluses
-        if ((!cagnotteData.contributions || cagnotteData.contributions.length === 0) && (!cagnotteData.recentContributions || cagnotteData.recentContributions.length === 0)) {
-          try {
-            let contribResponse;
-            try {
-              // Tentative sans authentification d'abord
-              const publicContribs = await fetchPublic(`/pulls/${id}/contributions`);
-              contribResponse = { data: publicContribs };
-              console.log('✅ Contributions récupérées via endpoint public');
-            } catch (publicContribError) {
-              console.log('❌ Contributions publiques échouées, tentative avec auth:', publicContribError.message);
-              contribResponse = await api.get(`/pulls/${id}/contributions`);
-              console.log('✅ Contributions récupérées via endpoint authentifié');
-            }
-            
-            console.log('Contributions chargées séparément:', contribResponse.data);
-            const contribs = contribResponse.data.data || contribResponse.data || [];
-            console.log('Contributions à définir:', contribs);
-            setContributions(contribs);
-          } catch (contribError) {
-            console.error('Erreur lors du chargement des contributions:', contribError);
-            setContributions([]);
-          }
-        }
-
+        setContributions(finalContributions);
         setError(null);
       } catch (err) {
         console.error('Erreur lors du chargement:', err);
@@ -263,7 +254,7 @@ const CagnotteDetails = () => {
     }
   }, [currentUserData]);
 
-  if (loading) return <p className="text-center mt-[80px] text-gray-500">Chargement...</p>;
+  if (loading) return <SkeletonLoader type="default" />;
   if (error) return <div style={{ textAlign: "center", marginTop: 80, color: "#ef4444" }}>{error}</div>;
   if (!cagnotte) return <p className="text-center mt-20 text-gray-500">Cagnotte introuvable...</p>;
 
